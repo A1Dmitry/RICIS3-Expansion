@@ -81,10 +81,9 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   loadFromJson: async (text: string) => {
-    const loaded = importMapJson(text);
+    const loaded = await importMapJson(text);
     if (!loaded) return false;
     set({ ...loaded, hydrated: true });
-    await saveMapToDb(loaded);
     return true;
   },
 }));
