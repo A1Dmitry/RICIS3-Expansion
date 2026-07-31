@@ -2,7 +2,7 @@ import { MapState, Axiom, ProblemNode, DependencyEdge, Proof, ProofStep } from '
 
 export function generateProof(node: ProblemNode): Proof {
   const latexSteps: string[] = [];
-  latexSteps.push(`\\section*{RICIS-III Proof: ${node.title}}`);
+  latexSteps.push(`\\section*{RICIS-III Proof: ${node.title}`);
   latexSteps.push(`\\textbf{Target Function:} $${node.targetFunction}$`);
   
   const steps: ProofStep[] = [
@@ -14,7 +14,7 @@ export function generateProof(node: ProblemNode): Proof {
   ];
 
   steps.forEach(s => {
-    latexSteps.push(`\\subsection*{Phase ${s.phase}: ${s.name}}`);
+    latexSteps.push(`\\subsection*{Phase ${s.phase}: ${s.name}`);
     latexSteps.push(`\\text{Action:} ${s.action} \\\\`);
     latexSteps.push(`$$ ${s.expression} $$`);
   });
@@ -63,10 +63,17 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
     economicInfluence: 0.5
   }));
 
+  const childIds = newNodes.map(n => n.id);
+  const nodesWithParent = map.nodes.map(n =>
+    n.id === solvedNodeId
+      ? { ...n, dependentIds: [...n.dependentIds, ...childIds] }
+      : n
+  );
+
   return {
     ...map,
-    nodes: [...map.nodes, ...newNodes],
-    edges: [...map.edges, ...newEdges]
+    nodes: [...nodesWithParent, ...newNodes],
+    edges: [...map.edges, ...newEdges],
   };
 }
 
