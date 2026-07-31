@@ -107,6 +107,14 @@ export const Map3D: React.FC = () => {
     return getUnlockRequirements(selectedNode, map);
   }, [selectedNode, map.nodes]);
 
+  const availableNodes = useMemo(
+    () =>
+      map.nodes.filter(
+        n => n.state !== 'resolved' && isNodeAvailable(n, map)
+      ),
+    [map.nodes, map.edges]
+  );
+
   const zonePositions = useMemo(
     () => layoutZones(map.zones, map.nodes),
     [map.zones, map.nodes]
@@ -207,6 +215,44 @@ export const Map3D: React.FC = () => {
                 </div>
               ))}
             </div>
+          </section>
+
+          <section>
+            <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">
+              Доступно к решению ({availableNodes.length})
+            </h3>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {availableNodes.length === 0 && (
+                <p className="text-[10px] text-gray-600">Нет открытых узлов.</p>
+              )}
+              {availableNodes.map(n => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => setSelectedNodeId(n.id)}
+                  className={
+                    'w-full text-left px-2 py-1.5 text-[11px] rounded border transition-colors ' +
+                    (selectedNodeId === n.id
+                      ? 'border-cyan-500/60 bg-cyan-950/50 text-cyan-200'
+                      : 'border-neutral-800 bg-neutral-900/40 text-gray-300 hover:border-cyan-800/50 hover:text-cyan-300')
+                  }
+                >
+                  <span className="block truncate font-medium">{n.title}</span>
+                  <span className="block text-[9px] text-gray-500 font-mono truncate">{n.id}</span>
+                </button>
+              ))}
+            </div>
+            {selectedNode &&
+              selectedNode.state !== 'resolved' &&
+              isNodeAvailable(selectedNode, map) && (
+                <button
+                  type="button"
+                  onClick={() => handleSolve(selectedNode.id)}
+                  className="mt-2 w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10px] uppercase tracking-wider rounded"
+                >
+                  Execute RICIS Solution
+                </button>
+              )}
           </section>
 
           <section>
