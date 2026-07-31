@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { MapState } from '../model/types';
 import { initialMap } from '../model/initialMap';
 import { solveNodeLogic } from '../model/logic';
+import { applyAgentDiscoveries, catalogExhausted, remainingCatalogCount } from '../model/agent';
+import { isNodeAvailable } from '../model/access';
 import {
   hydrateInitialState,
   saveMapToDb,
@@ -19,6 +21,9 @@ interface MapStore extends MapState {
   resetMap: () => Promise<void>;
   downloadJson: () => void;
   loadFromJson: (text: string) => Promise<boolean>;
+  runAgentDiscovery: (anchorNodeId?: string) => number;
+  catalogRemaining: () => number;
+  isCatalogExhausted: () => boolean;
 }
 
 function emptyState(): MapState {
@@ -51,6 +56,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
     if (!node || node.state === 'resolved' || state.proofs[nodeId]) {
       return;
     }
+    if (!isNodeAvailable(node, state)) return;
     const newState = solveNodeLogic(state, nodeId);
     set(newState);
     void saveMapToDb(newState);
@@ -85,5 +91,27 @@ export const useMapStore = create<MapStore>((set, get) => ({
     if (!loaded) return false;
     set({ ...loaded, hydrated: true });
     return true;
+  },
+
+  catalogRemaining: () => remainingCatalogCount(get()),
+
+  isCatalogExhausted: () => catalogExhausted(get()),
+
+  runAgentDiscovery: (anchorNodeId?: string) => {
+    const state = get();
+    const anchor =
+      anchorNodeId ||
+      state.nodes.find(n => n.id === 'core-agi-target')?.id ||
+      state.nodes.find(n => n.state === 'resolved')?.id ||
+      state.nodes[0]?.id;
+    if (!anchor) return 0;
+    const before = state.nodes.length;
+    const next = applyAgentDiscoveries(state, anchor, 2);
+    const added = next.nodes.length - before;
+    if (added > 0) {
+      set(next);
+      void saveMapToDb(next);
+    }
+    return added;
   },
 }));
