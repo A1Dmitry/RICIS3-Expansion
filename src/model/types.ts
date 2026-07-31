@@ -7,6 +7,9 @@ export interface EconomicInfo {
   riskLoss: number;
 }
 
+/** Класс награды / мотивации за решение. */
+export type RewardClass = 'clay' | 'nobel' | 'commercial' | 'reputation';
+
 export interface ProblemNode {
   id: string;
   title: string;
@@ -19,6 +22,14 @@ export interface ProblemNode {
   dependentIds: string[];
   fractalDepth: number;
   economic: EconomicInfo;
+  /** clay / nobel — высший приз; commercial — рынок; reputation — известность. */
+  rewardClass?: RewardClass;
+  /** Клей, Нобель, премия и т.п. */
+  prizeNote?: string;
+  /** Суть сингулярности в постановке задачи. */
+  singularityHint?: string;
+  /** Уже решаема протоколом RICIS-III (ядро / готовые ветки). */
+  ricisSolvable?: boolean;
 }
 
 export type EdgeColor = 'red' | 'yellow' | 'green';
