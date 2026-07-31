@@ -1,4 +1,5 @@
 import { MapState, Axiom, ProblemNode, DependencyEdge, Proof, ProofStep } from './types';
+import { KNOWN_SINGULARITY_PROBLEMS } from './initialMap';
 
 export function generateProof(node: ProblemNode): Proof {
   const latexSteps: string[] = [];
@@ -31,36 +32,106 @@ export function generateProof(node: ProblemNode): Proof {
   };
 }
 
+/**
+ * Фрактальное расширение: подтягивает реальные задачи из каталога
+ * (KNOWN_SINGULARITY_PROBLEMS), а не плейсхолдеры «Зависимая проблема».
+ *
+ * Приоритет:
+ * 1) задачи каталога, явно зависящие от решённого узла;
+ * 2) задачи той же научной зоны, ещё не связанные как потомки;
+ * 3) осмысленные уточняющие ветви с названием родителя (если каталог исчерпан).
+ */
 export function expandFractal(map: MapState, solvedNodeId: string): MapState {
   const solved = map.nodes.find(n => n.id === solvedNodeId);
   if (!solved) return map;
 
-  const newNodes: ProblemNode[] = [1, 2].map(i => ({
-    id: `${solvedNodeId}-child-${i}-${Date.now()}`,
-    title: `Зависимая проблема ${i}`,
-    description: `Порождённая от узла ${solvedNodeId}`,
-    state: 'unresolved',
-    type: 'derived_problem',
-    targetFunction: `DerivedTarget(${solved.targetFunction}, ${i})`,
-    zoneIds: solved.zoneIds,
-    dependencyIds: [solvedNodeId],
-    dependentIds: [],
-    fractalDepth: solved.fractalDepth + 1,
-    economic: {
-      costUnresolved: solved.economic.costUnresolved * 0.5,
-      costToSolve: solved.economic.costToSolve * 0.3,
-      marketGain: solved.economic.marketGain * 0.4,
-      riskLoss: solved.economic.riskLoss * 0.5
-    }
-  }));
+  const existingIds = new Set(map.nodes.map(n => n.id));
+  const alreadyDependent = new Set(solved.dependentIds);
+
+  // 1. Каталожные задачи, у которых solvedNodeId указан в dependencyIds
+  const catalogDependents = KNOWN_SINGULARITY_PROBLEMS.filter(
+    p =>
+      p.dependencyIds.includes(solvedNodeId) &&
+      !existingIds.has(p.id) &&
+      !alreadyDependent.has(p.id)
+  );
+
+  // 2. Задачи той же зоны (ещё не на карте), если прямых зависимостей мало
+  const sameZoneCandidates = KNOWN_SINGULARITY_PROBLEMS.filter(
+    p =>
+      !existingIds.has(p.id) &&
+      !catalogDependents.some(c => c.id === p.id) &&
+      p.zoneIds.some(z => solved.zoneIds.includes(z)) &&
+      p.id !== solvedNodeId
+  );
+
+  const MAX_NEW = 2;
+  const pickedFromCatalog: ProblemNode[] = [];
+
+  for (const p of catalogDependents) {
+    if (pickedFromCatalog.length >= MAX_NEW) break;
+    pickedFromCatalog.push(p);
+  }
+  for (const p of sameZoneCandidates) {
+    if (pickedFromCatalog.length >= MAX_NEW) break;
+    pickedFromCatalog.push(p);
+  }
+
+  const newNodes: ProblemNode[] = [];
+  const stamp = Date.now();
+
+  for (let i = 0; i < pickedFromCatalog.length; i++) {
+    const src = pickedFromCatalog[i];
+    newNodes.push({
+      ...src,
+      economic: { ...src.economic },
+      zoneIds: [...src.zoneIds],
+      dependencyIds: Array.from(new Set([...(src.dependencyIds || []), solvedNodeId])),
+      dependentIds: [],
+      fractalDepth: solved.fractalDepth + 1,
+      state: 'unresolved',
+      type: src.type === 'core_singularity' ? 'scientific_task' : src.type,
+    });
+  }
+
+  // 3. Если каталог не дал кандидатов — осмысленные ветви с названием родителя
+  while (newNodes.length < MAX_NEW) {
+    const i = newNodes.length + 1;
+    const branchLabel =
+      i === 1
+        ? `Уточнение: ${solved.title}`
+        : `Связанная задача: ${solved.title} (ветвь ${i})`;
+    newNodes.push({
+      id: `${solvedNodeId}-branch-${i}-${stamp}`,
+      title: branchLabel,
+      description: `Фрактальное уточнение задачи «${solved.title}». Порождено решением узла ${solvedNodeId}.`,
+      state: 'unresolved',
+      type: 'derived_problem',
+      targetFunction: `Refine(${solved.targetFunction}, ${i})`,
+      zoneIds: [...solved.zoneIds],
+      dependencyIds: [solvedNodeId],
+      dependentIds: [],
+      fractalDepth: solved.fractalDepth + 1,
+      economic: {
+        costUnresolved: Math.round(solved.economic.costUnresolved * 0.5),
+        costToSolve: Math.round(solved.economic.costToSolve * 0.3),
+        marketGain: Math.round(solved.economic.marketGain * 0.4),
+        riskLoss: Math.round(solved.economic.riskLoss * 0.5),
+      },
+      rewardClass: solved.rewardClass,
+      singularityHint: solved.singularityHint
+        ? `Уточнение: ${solved.singularityHint}`
+        : undefined,
+    });
+  }
 
   const newEdges: DependencyEdge[] = newNodes.map(n => ({
     id: `edge-${solvedNodeId}-${n.id}`,
     fromId: solvedNodeId,
     toId: n.id,
     strength: 0.7,
-    stateColor: 'red',
-    economicInfluence: 0.5
+    stateColor: 'red' as const,
+    economicInfluence: 0.5,
   }));
 
   const childIds = newNodes.map(n => n.id);
