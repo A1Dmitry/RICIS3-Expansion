@@ -1,27 +1,28 @@
 import { MapState, Axiom, ProblemNode, DependencyEdge, Proof, ProofStep } from './types';
 import { KNOWN_SINGULARITY_PROBLEMS } from './initialMap';
+import { catalogExhausted, applyAgentDiscoveries } from './agent';
 
 export function generateProof(node: ProblemNode): Proof {
   const latexSteps: string[] = [];
-  latexSteps.push(`\\section*{RICIS-III Proof: ${node.title}}`);
-  latexSteps.push(`\\textbf{Target Function:} $${node.targetFunction}$`);
-  
+  latexSteps.push('\\section*{RICIS-III Proof: ' + node.title + '}');
+  latexSteps.push('\\textbf{Target Function:} $' + node.targetFunction + '$');
+
   const steps: ProofStep[] = [
-    { phase: -1, name: "L1_IDENTITY", action: "Verify identity and types", expression: `T(${node.targetFunction}) \\equiv \\text{Valid}` },
-    { phase: 0.5, name: "SEMANTIC INDEXING (SP4)", action: "Index singularities by parent expression", expression: `0_{{\\{${node.targetFunction}\\}}` },
-    { phase: 1, name: "SAFETY CHECK (SP2)", action: "Algebraic reduction before singularity evaluation", expression: `\\text{Reduced}(${node.targetFunction})` },
-    { phase: 2, name: "RICIS transforms", action: "Apply A6 (General) and A4", expression: `0_F \\times \\infty_G = F \\cdot G` },
-    { phase: 6, name: "L1 verification", action: "Final consistency check", expression: `\\text{Result} \\equiv \\text{Result}` }
+    { phase: -1, name: 'L1_IDENTITY', action: 'Verify identity and types', expression: 'T(' + node.targetFunction + ')' },
+    { phase: 0.5, name: 'SEMANTIC INDEXING (SP4)', action: 'Index singularities by parent expression', expression: '0_{' + node.targetFunction + '}' },
+    { phase: 1, name: 'SAFETY CHECK (SP2)', action: 'Algebraic reduction before singularity evaluation', expression: 'Reduced(' + node.targetFunction + ')' },
+    { phase: 2, name: 'RICIS transforms', action: 'Apply A6 (General) and A4', expression: '0_F x infinity_G = F * G' },
+    { phase: 6, name: 'L1 verification', action: 'Final consistency check', expression: 'Result equiv Result' }
   ];
 
   steps.forEach(s => {
-    latexSteps.push(`\\subsection*{Phase ${s.phase}: ${s.name}}`);
-    latexSteps.push(`\\text{Action:} ${s.action} \\\\`);
-    latexSteps.push(`$$ ${s.expression} $$`);
+    latexSteps.push('\\subsection*{Phase ' + s.phase + ': ' + s.name + '}');
+    latexSteps.push('Action: ' + s.action);
+    latexSteps.push('$$ ' + s.expression + ' $$');
   });
 
-  const finalResult = `Axiom Extracted: ${node.id}_resolved`;
-  latexSteps.push(`\\textbf{Final Result:} ${finalResult}`);
+  const finalResult = 'Axiom Extracted: ' + node.id + '_resolved';
+  latexSteps.push('\\textbf{Final Result:} ' + finalResult);
 
   return {
     nodeId: node.id,
@@ -32,15 +33,6 @@ export function generateProof(node: ProblemNode): Proof {
   };
 }
 
-/**
- * Фрактальное расширение: подтягивает реальные задачи из каталога
- * (KNOWN_SINGULARITY_PROBLEMS), а не плейсхолдеры «Зависимая проблема».
- *
- * Приоритет:
- * 1) задачи каталога, явно зависящие от решённого узла;
- * 2) задачи той же научной зоны, ещё не связанные как потомки;
- * 3) осмысленные уточняющие ветви с названием родителя (если каталог исчерпан).
- */
 export function expandFractal(map: MapState, solvedNodeId: string): MapState {
   const solved = map.nodes.find(n => n.id === solvedNodeId);
   if (!solved) return map;
@@ -92,19 +84,23 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
     });
   }
 
+  if (newNodes.length === 0 && catalogExhausted(map)) {
+    return applyAgentDiscoveries(map, solvedNodeId, MAX_NEW);
+  }
+
   while (newNodes.length < MAX_NEW) {
     const i = newNodes.length + 1;
     const branchLabel =
       i === 1
-        ? `Уточнение: ${solved.title}`
-        : `Связанная задача: ${solved.title} (ветвь ${i})`;
+        ? 'Уточнение: ' + solved.title
+        : 'Связанная задача: ' + solved.title + ' (ветвь ' + i + ')';
     newNodes.push({
-      id: `${solvedNodeId}-branch-${i}-${stamp}`,
+      id: solvedNodeId + '-branch-' + i + '-' + stamp,
       title: branchLabel,
-      description: `Фрактальное уточнение задачи «${solved.title}». Порождено решением узла ${solvedNodeId}.`,
+      description: 'Фрактальное уточнение задачи «' + solved.title + '».',
       state: 'unresolved',
       type: 'derived_problem',
-      targetFunction: `Refine(${solved.targetFunction}, ${i})`,
+      targetFunction: 'Refine(' + solved.targetFunction + ', ' + i + ')',
       zoneIds: [...solved.zoneIds],
       dependencyIds: [solvedNodeId],
       dependentIds: [],
@@ -117,13 +113,13 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
       },
       rewardClass: solved.rewardClass,
       singularityHint: solved.singularityHint
-        ? `Уточнение: ${solved.singularityHint}`
+        ? 'Уточнение: ' + solved.singularityHint
         : undefined,
     });
   }
 
   const newEdges: DependencyEdge[] = newNodes.map(n => ({
-    id: `edge-${solvedNodeId}-${n.id}`,
+    id: 'edge-' + solvedNodeId + '-' + n.id,
     fromId: solvedNodeId,
     toId: n.id,
     strength: 0.7,
@@ -150,7 +146,7 @@ export function solveNodeLogic(map: MapState, nodeId: string): MapState {
   if (!node || node.state === 'resolved') return map;
 
   const updatedNode = { ...node, state: 'resolved' as const };
-  
+
   const updatedNodes = map.nodes.map(n => {
     if (n.id === nodeId) return updatedNode;
     if (node.dependentIds.includes(n.id)) {
@@ -167,9 +163,9 @@ export function solveNodeLogic(map: MapState, nodeId: string): MapState {
   });
 
   const axiom: Axiom = {
-    id: `ax-${node.id}-${Date.now()}`,
+    id: 'ax-' + node.id + '-' + Date.now(),
     sourceNodeId: node.id,
-    formalStatement: `Axiom(${node.targetFunction})`,
+    formalStatement: 'Axiom(' + node.targetFunction + ')',
     usedByNodeIds: []
   };
 
@@ -179,10 +175,10 @@ export function solveNodeLogic(map: MapState, nodeId: string): MapState {
 
   const proof = generateProof(node);
 
-  const newMap = { 
-    ...map, 
-    nodes: updatedNodes, 
-    edges: updatedEdges, 
+  const newMap = {
+    ...map,
+    nodes: updatedNodes,
+    edges: updatedEdges,
     axioms: [...map.axioms, axiom],
     proofs: { ...map.proofs, [nodeId]: proof }
   };
