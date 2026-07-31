@@ -1,7 +1,7 @@
 {
   "name": "ricis3-expansion",
   "private": false,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "RICIS-III Singularity Map — интерактивная 3D-карта проблем сингулярности с формальным ядром RICIS-III",
   "type": "module",
   "scripts": {
@@ -30,7 +30,7 @@
   "bugs": {
     "url": "https://github.com/A1Dmitry/RICIS3-Expansion/issues"
   },
-  "homepage": "https://github.com/A1Dmitry/RICIS3-Expansion#readme",
+  "homepage": "https://a1dmitry.github.io/RICIS3-Expansion/",
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@react-three/fiber": "^9.7.0",
