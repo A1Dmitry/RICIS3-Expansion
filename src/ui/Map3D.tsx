@@ -3,6 +3,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { useMapStore } from '../store/mapStore';
 import * as THREE from 'three';
 import { OrbitControls as ThreeOrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { APP_BUILD_LABEL, APP_VERSION } from '../version';
 
 const zoneColors: Record<string, string> = {
   math: '#3b82f6',
@@ -12,6 +13,9 @@ const zoneColors: Record<string, string> = {
   physics: '#f59e0b',
   economics: '#eab308',
   ethics: '#f43f5e',
+  cognitive: '#a78bfa',
+  chemistry: '#34d399',
+  bioinformatics: '#2dd4bf',
 };
 
 function OrbitControls() {
@@ -155,8 +159,18 @@ export const Map3D: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className="w-3 h-3 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_8px_cyan]"></div>
           <h1 className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">RICIS-III // Singularity Map Core</h1>
+          <span
+            className="text-[10px] font-mono px-2 py-0.5 rounded border border-cyan-800/60 bg-cyan-950/50 text-cyan-300"
+            title={`Версия приложения ${APP_VERSION}`}
+          >
+            {APP_BUILD_LABEL}
+          </span>
         </div>
         <div className="flex gap-8 text-[10px] font-mono">
+          <div className="flex flex-col">
+            <span className="text-gray-500">VERSION</span>
+            <span className="text-cyan-200">{APP_BUILD_LABEL}</span>
+          </div>
           <div className="flex flex-col">
             <span className="text-gray-500">FRACTAL_DEPTH</span>
             <span className="text-cyan-200">LEVEL_{Math.max(...map.nodes.map(n => n.fractalDepth), 0).toString().padStart(2, '0')}</span>
@@ -182,6 +196,15 @@ export const Map3D: React.FC = () => {
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: zoneColors[zone.id] || '#ffffff' }}></span>
                 </div>
               ))}
+            </div>
+          </section>
+          <section>
+            <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Persistence</h3>
+            <div className="space-y-2">
+              <button type="button" onClick={() => { void map.saveNow(); }} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-cyan-800/50 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/40">Сохранить в IndexedDB</button>
+              <button type="button" onClick={() => map.downloadJson()} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-neutral-700 bg-neutral-900/50 text-gray-300 hover:bg-neutral-800">Скачать снимок .json</button>
+              <button type="button" onClick={() => { if (window.confirm('Сбросить карту?')) void map.resetMap(); }} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-red-900/40 bg-red-950/20 text-red-300/90 hover:bg-red-900/30">Сброс карты</button>
+              <p className="text-[9px] text-gray-600 leading-snug pt-1">Версия {APP_BUILD_LABEL}. После обновления кода — сброс карты.</p>
             </div>
           </section>
         </aside>
@@ -230,6 +253,9 @@ export const Map3D: React.FC = () => {
                 <button onClick={() => setSelectedNodeId(null)} className="text-neutral-500 hover:text-white ml-4">✕</button>
               </div>
               <p className="text-[11px] text-gray-400 mb-4">{selectedNode.description}</p>
+              {(selectedNode as { ricisSolvable?: boolean }).ricisSolvable && (
+                <span className="inline-block mb-3 px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-cyan-900/50 text-cyan-300 border border-cyan-700/40">RICIS-SOLVABLE</span>
+              )}
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="bg-white/5 p-2 rounded">
                   <span className="block text-[8px] text-gray-500 uppercase">Risk Loss</span>
@@ -266,6 +292,7 @@ export const Map3D: React.FC = () => {
       </main>
       <footer className="h-8 border-t border-cyan-900/30 bg-[#080808] flex items-center px-4 overflow-hidden shrink-0">
         <div className="flex whitespace-nowrap gap-8 text-[9px] font-mono text-cyan-900/60 uppercase tracking-tighter">
+          <span className="text-cyan-400/90">// VERSION {APP_BUILD_LABEL}</span>
           <span className="text-cyan-500/80">// RICIS-III BOOT SEQUENCE COMPLETED</span>
           <span>// ZONE LAYOUT: PRESSURE + YUKAWA SCREENING</span>
           <span className="text-green-500/80">// L1 IDENTITY AXIOM ENFORCED</span>
