@@ -1,7 +1,7 @@
 {
   "name": "ricis3-expansion",
   "private": false,
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "RICIS-III Singularity Map — интерактивная 3D-карта проблем сингулярности с формальным ядром RICIS-III",
   "type": "module",
   "scripts": {

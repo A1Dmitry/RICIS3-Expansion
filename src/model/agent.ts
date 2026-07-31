@@ -1,5 +1,11 @@
 import { MapState, ProblemNode, DependencyEdge } from './types';
-import { KNOWN_SINGULARITY_PROBLEMS } from './initialMap';
+
+/**
+ * Каталог известных проблем-сингулярностей для учёта остатка.
+ * Полный seed (Clay / Nobel / commercial) может быть расширен здесь или в initialMap.
+ * Пока пустой — catalogExhausted() = true, агент сразу генерирует новые узлы.
+ */
+const KNOWN_SINGULARITY_PROBLEMS: Array<{ id: string }> = [];
 
 const DISCOVERY_TEMPLATES: Array<{
   titleSuffix: string;
