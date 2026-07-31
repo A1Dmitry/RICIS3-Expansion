@@ -3,19 +3,19 @@ import { KNOWN_SINGULARITY_PROBLEMS } from './initialMap';
 
 export function generateProof(node: ProblemNode): Proof {
   const latexSteps: string[] = [];
-  latexSteps.push(`\\section*{RICIS-III Proof: ${node.title}`);
+  latexSteps.push(`\\section*{RICIS-III Proof: ${node.title}}`);
   latexSteps.push(`\\textbf{Target Function:} $${node.targetFunction}$`);
   
   const steps: ProofStep[] = [
     { phase: -1, name: "L1_IDENTITY", action: "Verify identity and types", expression: `T(${node.targetFunction}) \\equiv \\text{Valid}` },
-    { phase: 0.5, name: "SEMANTIC INDEXING (SP4)", action: "Index singularities by parent expression", expression: `0_{\\{${node.targetFunction}\\}}` },
+    { phase: 0.5, name: "SEMANTIC INDEXING (SP4)", action: "Index singularities by parent expression", expression: `0_{{\\{${node.targetFunction}\\}}` },
     { phase: 1, name: "SAFETY CHECK (SP2)", action: "Algebraic reduction before singularity evaluation", expression: `\\text{Reduced}(${node.targetFunction})` },
     { phase: 2, name: "RICIS transforms", action: "Apply A6 (General) and A4", expression: `0_F \\times \\infty_G = F \\cdot G` },
     { phase: 6, name: "L1 verification", action: "Final consistency check", expression: `\\text{Result} \\equiv \\text{Result}` }
   ];
 
   steps.forEach(s => {
-    latexSteps.push(`\\subsection*{Phase ${s.phase}: ${s.name}`);
+    latexSteps.push(`\\subsection*{Phase ${s.phase}: ${s.name}}`);
     latexSteps.push(`\\text{Action:} ${s.action} \\\\`);
     latexSteps.push(`$$ ${s.expression} $$`);
   });
@@ -48,7 +48,6 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
   const existingIds = new Set(map.nodes.map(n => n.id));
   const alreadyDependent = new Set(solved.dependentIds);
 
-  // 1. Каталожные задачи, у которых solvedNodeId указан в dependencyIds
   const catalogDependents = KNOWN_SINGULARITY_PROBLEMS.filter(
     p =>
       p.dependencyIds.includes(solvedNodeId) &&
@@ -56,7 +55,6 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
       !alreadyDependent.has(p.id)
   );
 
-  // 2. Задачи той же зоны (ещё не на карте), если прямых зависимостей мало
   const sameZoneCandidates = KNOWN_SINGULARITY_PROBLEMS.filter(
     p =>
       !existingIds.has(p.id) &&
@@ -94,7 +92,6 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
     });
   }
 
-  // 3. Если каталог не дал кандидатов — осмысленные ветви с названием родителя
   while (newNodes.length < MAX_NEW) {
     const i = newNodes.length + 1;
     const branchLabel =
