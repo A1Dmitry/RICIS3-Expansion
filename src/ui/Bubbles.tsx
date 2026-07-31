@@ -33,7 +33,13 @@ export function ZoneBubble({
   });
 
   return (
-    <mesh ref={meshRef} position={position} scale={radius}>
+    <mesh
+      ref={meshRef}
+      position={position}
+      scale={radius}
+      // Зоны не должны перехватывать клики по узлам
+      raycast={() => null}
+    >
       <sphereGeometry args={[1, 64, 64]} />
       <shaderMaterial
         ref={matRef}
@@ -122,7 +128,21 @@ export function NodeBubble({
   });
 
   return (
-    <mesh position={position} onClick={onClick}>
+    <mesh
+      position={position}
+      onClick={onClick}
+      onPointerDown={e => {
+        e.stopPropagation();
+        onClick(e);
+      }}
+      onPointerOver={e => {
+        e.stopPropagation();
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = 'auto';
+      }}
+    >
       <sphereGeometry args={[radius, 48, 48]} />
       <shaderMaterial
         ref={matRef}
