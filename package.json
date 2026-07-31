@@ -1,15 +1,36 @@
 {
-  "name": "react-example",
-  "private": true,
-  "version": "0.0.0",
+  "name": "ricis3-expansion",
+  "private": false,
+  "version": "0.1.0",
+  "description": "RICIS-III Singularity Map — интерактивная 3D-карта проблем сингулярности с формальным ядром RICIS-III",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "preview": "vite preview --port=4173 --host=0.0.0.0",
+    "start": "vite preview --port=4173 --host=0.0.0.0",
+    "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
+  "keywords": [
+    "ricis",
+    "ricis-iii",
+    "singularity",
+    "3d-map",
+    "react-three-fiber",
+    "agi",
+    "formal-methods"
+  ],
+  "author": "Dmitry Aleynikov (A1Dmitry)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/A1Dmitry/RICIS3-Expansion.git"
+  },
+  "bugs": {
+    "url": "https://github.com/A1Dmitry/RICIS3-Expansion/issues"
+  },
+  "homepage": "https://github.com/A1Dmitry/RICIS3-Expansion#readme",
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@react-three/fiber": "^9.7.0",
