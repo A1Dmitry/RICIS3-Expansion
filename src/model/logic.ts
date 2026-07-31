@@ -1,6 +1,8 @@
 import { MapState, Axiom, ProblemNode, DependencyEdge, Proof, ProofStep } from './types';
-import { KNOWN_SINGULARITY_PROBLEMS } from './initialMap';
 import { catalogExhausted, applyAgentDiscoveries } from './agent';
+
+/** Локальный пустой каталог (полный seed может быть восстановлен позже). */
+const KNOWN_SINGULARITY_PROBLEMS: ProblemNode[] = [];
 
 export function generateProof(node: ProblemNode): Proof {
   const latexSteps: string[] = [];
