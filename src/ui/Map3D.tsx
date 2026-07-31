@@ -11,6 +11,7 @@ import {
   countAvailable,
   isRicisCore,
 } from '../model/access';
+import { layoutZones, layoutNodes, zoneVisualRadius } from '../model/physics';
 
 const zoneColors: Record<string, string> = {
   math: '#3b82f6',
@@ -67,8 +68,8 @@ export const Map3D: React.FC = () => {
   const pathEdgeKeys = useMemo(() => {
     const keys = new Set<string>();
     for (let i = 0; i < pathNodeIds.length - 1; i++) {
-      keys.add(`${pathNodeIds[i]}|${pathNodeIds[i + 1]}`);
-      keys.add(`${pathNodeIds[i + 1]}|${pathNodeIds[i]}`);
+      keys.add(pathNodeIds[i] + '|' + pathNodeIds[i + 1]);
+      keys.add(pathNodeIds[i + 1] + '|' + pathNodeIds[i]);
     }
     return keys;
   }, [pathNodeIds]);
@@ -93,7 +94,7 @@ export const Map3D: React.FC = () => {
     const added = map.runAgentDiscovery(selectedNodeId || undefined);
     setAgentMsg(
       added > 0
-        ? `Агент добавил ${added} новых проблем в граф.`
+        ? 'Агент добавил ' + added + ' новых проблем в граф.'
         : 'Агент не нашёл новых кандидатов.'
     );
     setTimeout(() => setAgentMsg(null), 4000);
@@ -105,84 +106,25 @@ export const Map3D: React.FC = () => {
     return getUnlockRequirements(selectedNode, map);
   }, [selectedNode, map.nodes]);
 
-  const zonePositions = useMemo(() => {
-    const n = map.zones.length;
-    if (n === 0) return {} as Record<string, [number, number, number]>;
-    const pos: [number, number, number][] = map.zones.map((_, i) => {
-      const phi = Math.acos(1 - (2 * (i + 0.5)) / n);
-      const theta = Math.PI * (1 + Math.sqrt(5)) * i;
-      const r0 = 12;
-      return [
-        r0 * Math.sin(phi) * Math.cos(theta),
-        r0 * Math.sin(phi) * Math.sin(theta),
-        r0 * Math.cos(phi) * 0.5,
-      ];
-    });
-    const kPressure = 0.04;
-    const kRepel = 22;
-    const lambda = 7;
-    const soft = 1.2;
-    const damping = 0.82;
-    const steps = 90;
-    const dt = 0.5;
-    const vel = pos.map(() => [0, 0, 0] as [number, number, number]);
-    for (let s = 0; s < steps; s++) {
-      for (let i = 0; i < n; i++) {
-        let fx = -kPressure * pos[i][0];
-        let fy = -kPressure * pos[i][1];
-        let fz = -kPressure * pos[i][2];
-        for (let j = 0; j < n; j++) {
-          if (i === j) continue;
-          const dx = pos[i][0] - pos[j][0];
-          const dy = pos[i][1] - pos[j][1];
-          const dz = pos[i][2] - pos[j][2];
-          const r2 = dx * dx + dy * dy + dz * dz + soft * soft;
-          const r = Math.sqrt(r2);
-          const mag = (kRepel / r2) * Math.exp(-r / lambda);
-          fx += (dx / r) * mag;
-          fy += (dy / r) * mag;
-          fz += (dz / r) * mag;
-        }
-        vel[i][0] = (vel[i][0] + fx * dt) * damping;
-        vel[i][1] = (vel[i][1] + fy * dt) * damping;
-        vel[i][2] = (vel[i][2] + fz * dt) * damping;
-      }
-      for (let i = 0; i < n; i++) {
-        pos[i][0] += vel[i][0] * dt;
-        pos[i][1] += vel[i][1] * dt;
-        pos[i][2] += vel[i][2] * dt;
-      }
-    }
-    const positions: Record<string, [number, number, number]> = {};
-    map.zones.forEach((zone, i) => {
-      positions[zone.id] = [pos[i][0], pos[i][1], pos[i][2]];
-    });
-    return positions;
-  }, [map.zones]);
+  // Зоны: Fext = -Pext*S*n, Frep = k*(Si*Sj)/r^2
+  const zonePositions = useMemo(
+    () => layoutZones(map.zones, map.nodes),
+    [map.zones, map.nodes]
+  );
 
-  const nodePositions = useMemo(() => {
-    const positions: Record<string, [number, number, number]> = {};
-    const zoneCounts: Record<string, number> = {};
-    map.nodes.forEach(node => {
-      const primaryZone = node.zoneIds[0] || 'math';
-      const zPos = zonePositions[primaryZone] || [0, 0, 0];
-      const count = zoneCounts[primaryZone] || 0;
-      zoneCounts[primaryZone] = count + 1;
-      if (isRicisCore(node) || node.type === 'core_singularity') {
-        positions[node.id] = [zPos[0] * 0.25, zPos[1] * 0.25, zPos[2] * 0.25];
-      } else {
-        const angle = count * Math.PI * 0.618;
-        const dist = 1.2 + count * 0.55;
-        const zOff = ((count * 0.73) % 1) * 2.8 - 1.4;
-        positions[node.id] = [
-          zPos[0] + Math.cos(angle) * dist,
-          zPos[1] + Math.sin(angle) * dist,
-          zPos[2] + zOff,
-        ];
-      }
+  // Узлы: давление к центру зоны + отталкивание экранированием
+  const nodePositions = useMemo(
+    () => layoutNodes(map, zonePositions),
+    [map.nodes, map.edges, zonePositions]
+  );
+
+  const zoneRadii = useMemo(() => {
+    const r: Record<string, number> = {};
+    map.zones.forEach(z => {
+      r[z.id] = zoneVisualRadius(z, map.nodes);
     });
-    return positions;
-  }, [map.nodes, zonePositions]);
+    return r;
+  }, [map.zones, map.nodes]);
 
   const edgesLines = useMemo(() => {
     return map.edges.map(edge => {
@@ -190,8 +132,8 @@ export const Map3D: React.FC = () => {
       const toPos = nodePositions[edge.toId];
       if (!fromPos || !toPos) return null;
       const onPath =
-        pathEdgeKeys.has(`${edge.fromId}|${edge.toId}`) ||
-        pathEdgeKeys.has(`${edge.toId}|${edge.fromId}`);
+        pathEdgeKeys.has(edge.fromId + '|' + edge.toId) ||
+        pathEdgeKeys.has(edge.toId + '|' + edge.fromId);
       const points = [new THREE.Vector3(...fromPos), new THREE.Vector3(...toPos)];
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       return (
@@ -315,8 +257,8 @@ export const Map3D: React.FC = () => {
           </section>
 
           <p className="text-[9px] text-gray-600 mt-auto leading-snug">
-            Все ~100 узлов на карте. Серые — заблокированы зависимостями. «Путь к RICIS» подсвечивает
-            цепочку открытий.
+            Физика: внешнее давление Pext и взаимное экранирование 1/r². Серые узлы заблокированы
+            зависимостями.
           </p>
         </aside>
 
@@ -330,13 +272,14 @@ export const Map3D: React.FC = () => {
             {map.zones.map(zone => {
               const pos = zonePositions[zone.id] || [0, 0, 0];
               const color = zoneColors[zone.id] || '#ffffff';
+              const radius = zoneRadii[zone.id] || 5;
               return (
                 <mesh key={zone.id} position={pos}>
-                  <sphereGeometry args={[6.5, 28, 28]} />
+                  <sphereGeometry args={[radius, 28, 28]} />
                   <meshStandardMaterial
                     color={color}
                     transparent
-                    opacity={0.07}
+                    opacity={0.08}
                     depthWrite={false}
                     side={THREE.DoubleSide}
                   />
@@ -401,13 +344,14 @@ export const Map3D: React.FC = () => {
 
               <div className="mb-3 flex gap-2 flex-wrap">
                 <span
-                  className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                    selectedNode.state === 'resolved'
+                  className={
+                    'px-2 py-0.5 rounded text-[9px] font-bold uppercase ' +
+                    (selectedNode.state === 'resolved'
                       ? 'bg-green-900/50 text-green-400'
                       : selectedNode.state === 'partial'
                       ? 'bg-yellow-900/50 text-yellow-400'
-                      : 'bg-red-900/50 text-red-400'
-                  }`}
+                      : 'bg-red-900/50 text-red-400')
+                  }
                 >
                   {selectedNode.state}
                 </span>
@@ -509,7 +453,7 @@ export const Map3D: React.FC = () => {
       <footer className="h-8 border-t border-cyan-900/30 bg-[#080808] flex items-center px-4 shrink-0">
         <div className="flex gap-6 text-[9px] font-mono text-cyan-900/70 uppercase">
           <span className="text-cyan-400/90">// {APP_BUILD_LABEL}</span>
-          <span>// ALL CATALOG NODES VISIBLE</span>
+          <span>// PHYSICS: Pext + 1/r2 SHIELDING REPULSION</span>
           <span>// GRAY = LOCKED BY DEPENDENCIES</span>
           <span className="text-cyan-500/80">// PATH-TO-RICIS HIGHLIGHT</span>
         </div>
