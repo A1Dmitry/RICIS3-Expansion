@@ -12,6 +12,7 @@ import {
   isRicisCore,
 } from '../model/access';
 import { layoutZones, layoutNodes, zoneVisualRadius } from '../model/physics';
+import { ZoneBubble, NodeBubble } from './Bubbles';
 
 const zoneColors: Record<string, string> = {
   math: '#3b82f6',
@@ -106,13 +107,11 @@ export const Map3D: React.FC = () => {
     return getUnlockRequirements(selectedNode, map);
   }, [selectedNode, map.nodes]);
 
-  // Зоны: Fext = -Pext*S*n, Frep = k*(Si*Sj)/r^2
   const zonePositions = useMemo(
     () => layoutZones(map.zones, map.nodes),
     [map.zones, map.nodes]
   );
 
-  // Узлы: давление к центру зоны + отталкивание экранированием
   const nodePositions = useMemo(
     () => layoutNodes(map, zonePositions),
     [map.nodes, map.edges, zonePositions]
@@ -213,78 +212,40 @@ export const Map3D: React.FC = () => {
           <section>
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Persistence</h3>
             <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => {
-                  void map.saveNow();
-                }}
-                className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-cyan-800/50 bg-cyan-950/40 text-cyan-300"
-              >
-                Сохранить в IndexedDB
-              </button>
-              <button
-                type="button"
-                onClick={() => map.downloadJson()}
-                className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-neutral-700 text-gray-300"
-              >
-                Скачать .json
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Сбросить карту?')) void map.resetMap();
-                }}
-                className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-red-900/40 text-red-300"
-              >
-                Сброс карты
-              </button>
+              <button type="button" onClick={() => { void map.saveNow(); }} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-cyan-800/50 bg-cyan-950/40 text-cyan-300">Сохранить в IndexedDB</button>
+              <button type="button" onClick={() => map.downloadJson()} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-neutral-700 text-gray-300">Скачать .json</button>
+              <button type="button" onClick={() => { if (window.confirm('Сбросить карту?')) void map.resetMap(); }} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-red-900/40 text-red-300">Сброс карты</button>
             </div>
           </section>
 
           <section>
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">ИИ-агент</h3>
-            <button
-              type="button"
-              onClick={handleAgentDiscovery}
-              className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-violet-800/50 bg-violet-950/40 text-violet-300"
-            >
-              Поиск новых проблем
-            </button>
-            <p className="text-[9px] text-gray-600 mt-1">
-              Каталог остаток: {map.catalogRemaining()}. После исчерпания агент добавляет узлы в граф.
-            </p>
+            <button type="button" onClick={handleAgentDiscovery} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-violet-800/50 bg-violet-950/40 text-violet-300">Поиск новых проблем</button>
+            <p className="text-[9px] text-gray-600 mt-1">Каталог остаток: {map.catalogRemaining()}.</p>
             {agentMsg && <p className="text-[10px] text-violet-300 mt-1">{agentMsg}</p>}
           </section>
 
           <p className="text-[9px] text-gray-600 mt-auto leading-snug">
-            Физика: внешнее давление Pext и взаимное экранирование 1/r². Серые узлы заблокированы
-            зависимостями.
+            Пузыри зон и узлов: fresnel + multi-light. Серые — locked.
           </p>
         </aside>
 
         <div className="flex-1 relative bg-[radial-gradient(circle_at_center,_#0a0f1a_0%,_#050505_100%)]">
-          <Canvas camera={{ position: [0, 0, 32], fov: 55 }}>
+          <Canvas camera={{ position: [0, 0, 32], fov: 55 }} gl={{ antialias: true, alpha: true }}>
             <OrbitControls />
-            <ambientLight intensity={0.5} />
-            <pointLight position={[10, 10, 10]} intensity={1} />
-            <pointLight position={[-10, -10, -10]} intensity={0.5} color="#06b6d4" />
+            <ambientLight intensity={0.22} />
+            <hemisphereLight args={['#1e3a5f', '#050508', 0.55]} />
+            <pointLight position={[18, 22, 14]} intensity={1.35} color="#e8f4ff" distance={80} />
+            <pointLight position={[-16, -8, 12]} intensity={0.85} color="#67e8f9" distance={70} />
+            <pointLight position={[8, -14, -18]} intensity={0.55} color="#a78bfa" distance={60} />
+            <pointLight position={[0, 28, 0]} intensity={0.45} color="#ffffff" distance={90} />
+            <spotLight position={[12, 30, 8]} angle={0.45} penumbra={0.6} intensity={0.7} color="#cffafe" />
 
             {map.zones.map(zone => {
               const pos = zonePositions[zone.id] || [0, 0, 0];
               const color = zoneColors[zone.id] || '#ffffff';
               const radius = zoneRadii[zone.id] || 5;
-              return (
-                <mesh key={zone.id} position={pos}>
-                  <sphereGeometry args={[radius, 28, 28]} />
-                  <meshStandardMaterial
-                    color={color}
-                    transparent
-                    opacity={0.08}
-                    depthWrite={false}
-                    side={THREE.DoubleSide}
-                  />
-                </mesh>
-              );
+              return <ZoneBubble key={zone.id} position={pos} color={color} radius={radius} />;
             })}
 
             {edgesLines}
@@ -299,33 +260,30 @@ export const Map3D: React.FC = () => {
 
               let color = '#ef4444';
               if (node.state === 'resolved') color = '#22c55e';
-              else if (locked) color = '#4b5563';
+              else if (locked) color = '#6b7280';
               else if (node.state === 'partial') color = '#eab308';
-              if (onPath) color = locked ? '#64748b' : '#22d3ee';
+              if (onPath) color = locked ? '#94a3b8' : '#22d3ee';
 
-              const baseR = isCore ? 0.95 : 0.5;
+              const baseR = isCore ? 0.95 : 0.52;
               const radius = isSelected ? baseR * 1.35 : onPath ? baseR * 1.15 : baseR;
+              const emissive = isSelected ? '#22d3ee' : onPath ? '#0891b2' : isCore ? '#155e75' : color;
+              const emissiveIntensity = isSelected ? 0.65 : onPath ? 0.45 : isCore ? 0.35 : locked ? 0.08 : 0.22;
 
               return (
-                <mesh
+                <NodeBubble
                   key={node.id}
                   position={pos}
+                  color={color}
+                  radius={radius}
+                  emissive={emissive}
+                  emissiveIntensity={emissiveIntensity}
+                  opacity={locked ? 0.5 : 0.92}
+                  locked={locked}
                   onClick={e => {
                     e.stopPropagation();
                     setSelectedNodeId(node.id);
                   }}
-                >
-                  <sphereGeometry args={[radius, 20, 20]} />
-                  <meshStandardMaterial
-                    color={color}
-                    roughness={locked ? 0.85 : 0.25}
-                    metalness={locked ? 0.15 : 0.75}
-                    emissive={isSelected ? '#22d3ee' : onPath ? '#0891b2' : isCore ? '#164e63' : '#000000'}
-                    emissiveIntensity={isSelected ? 0.55 : onPath ? 0.4 : isCore ? 0.25 : 0}
-                    opacity={locked ? 0.55 : 1}
-                    transparent={locked}
-                  />
-                </mesh>
+                />
               );
             })}
           </Canvas>
@@ -337,55 +295,23 @@ export const Map3D: React.FC = () => {
                   <h2 className="text-sm font-bold text-white leading-tight mb-1">{selectedNode.title}</h2>
                   <span className="text-[9px] font-mono text-cyan-400">ID: {selectedNode.id}</span>
                 </div>
-                <button onClick={() => setSelectedNodeId(null)} className="text-neutral-500 hover:text-white ml-3">
-                  ✕
-                </button>
+                <button onClick={() => setSelectedNodeId(null)} className="text-neutral-500 hover:text-white ml-3">✕</button>
               </div>
-
               <div className="mb-3 flex gap-2 flex-wrap">
-                <span
-                  className={
-                    'px-2 py-0.5 rounded text-[9px] font-bold uppercase ' +
-                    (selectedNode.state === 'resolved'
-                      ? 'bg-green-900/50 text-green-400'
-                      : selectedNode.state === 'partial'
-                      ? 'bg-yellow-900/50 text-yellow-400'
-                      : 'bg-red-900/50 text-red-400')
-                  }
-                >
-                  {selectedNode.state}
-                </span>
+                <span className={'px-2 py-0.5 rounded text-[9px] font-bold uppercase ' + (selectedNode.state === 'resolved' ? 'bg-green-900/50 text-green-400' : selectedNode.state === 'partial' ? 'bg-yellow-900/50 text-yellow-400' : 'bg-red-900/50 text-red-400')}>{selectedNode.state}</span>
                 {!isNodeAvailable(selectedNode, map) && selectedNode.state !== 'resolved' && (
-                  <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-gray-800 text-gray-400 border border-gray-700">
-                    LOCKED
-                  </span>
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-gray-800 text-gray-400 border border-gray-700">LOCKED</span>
                 )}
                 {isRicisCore(selectedNode) && (
-                  <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-cyan-900/50 text-cyan-300 border border-cyan-700/40">
-                    RICIS CORE
-                  </span>
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-cyan-900/50 text-cyan-300 border border-cyan-700/40">RICIS CORE</span>
                 )}
               </div>
-
               <p className="text-[11px] text-gray-400 leading-relaxed mb-3">{selectedNode.description}</p>
-
               <div className="mb-3 space-y-2">
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={handleFindPathToRicis}
-                    className="flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded border border-cyan-700/50 bg-cyan-950/50 text-cyan-300"
-                  >
-                    Путь к RICIS
-                  </button>
+                  <button type="button" onClick={handleFindPathToRicis} className="flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded border border-cyan-700/50 bg-cyan-950/50 text-cyan-300">Путь к RICIS</button>
                   {pathNodeIds.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setPathNodeIds([])}
-                      className="px-2 py-2 text-[10px] rounded border border-neutral-700 text-gray-400"
-                    >
-                      Сброс
-                    </button>
+                    <button type="button" onClick={() => setPathNodeIds([])} className="px-2 py-2 text-[10px] rounded border border-neutral-700 text-gray-400">Сброс</button>
                   )}
                 </div>
                 {pathNodeIds.length > 0 && (
@@ -399,49 +325,28 @@ export const Map3D: React.FC = () => {
                     <ul className="space-y-1 max-h-28 overflow-y-auto">
                       {unlockReqs.map(n => (
                         <li key={n.id} className="text-[10px] text-gray-300">
-                          <button
-                            type="button"
-                            className="text-left hover:text-cyan-300"
-                            onClick={() => setSelectedNodeId(n.id)}
-                          >
-                            ● {n.title}
-                          </button>
+                          <button type="button" className="text-left hover:text-cyan-300" onClick={() => setSelectedNodeId(n.id)}>● {n.title}</button>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
               </div>
-
-              <code className="block text-[10px] bg-black p-2 rounded border border-gray-800 font-mono text-cyan-200 mb-3">
-                {selectedNode.targetFunction}
-              </code>
-
+              <code className="block text-[10px] bg-black p-2 rounded border border-gray-800 font-mono text-cyan-200 mb-3">{selectedNode.targetFunction}</code>
               <button
                 onClick={() => handleSolve(selectedNode.id)}
                 disabled={selectedNode.state === 'resolved' || !isNodeAvailable(selectedNode, map)}
                 className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-800 disabled:text-gray-500 text-white font-bold text-xs uppercase tracking-widest rounded"
               >
-                {selectedNode.state === 'resolved'
-                  ? 'Axiom Extracted'
-                  : !isNodeAvailable(selectedNode, map)
-                  ? 'Заблокировано зависимостями'
-                  : 'Execute RICIS Solution'}
+                {selectedNode.state === 'resolved' ? 'Axiom Extracted' : !isNodeAvailable(selectedNode, map) ? 'Заблокировано зависимостями' : 'Execute RICIS Solution'}
               </button>
-
               {selectedNode.state === 'resolved' && map.getLatexProof(selectedNode.id) && (
                 <div className="mt-4 border-t border-gray-800 pt-3">
-                  <button
-                    onClick={() => setShowProof(!showProof)}
-                    className="w-full flex justify-between text-cyan-400 text-xs font-bold uppercase"
-                  >
-                    <span>View Formal Proof</span>
-                    <span>{showProof ? '▲' : '▼'}</span>
+                  <button onClick={() => setShowProof(!showProof)} className="w-full flex justify-between text-cyan-400 text-xs font-bold uppercase">
+                    <span>View Formal Proof</span><span>{showProof ? '▲' : '▼'}</span>
                   </button>
                   {showProof && (
-                    <div className="mt-2 bg-[#020202] p-3 rounded border border-cyan-900/50 text-gray-300 font-mono text-[9px] whitespace-pre-wrap max-h-40 overflow-y-auto">
-                      {map.getLatexProof(selectedNode.id)}
-                    </div>
+                    <div className="mt-2 bg-[#020202] p-3 rounded border border-cyan-900/50 text-gray-300 font-mono text-[9px] whitespace-pre-wrap max-h-40 overflow-y-auto">{map.getLatexProof(selectedNode.id)}</div>
                   )}
                 </div>
               )}
@@ -453,7 +358,7 @@ export const Map3D: React.FC = () => {
       <footer className="h-8 border-t border-cyan-900/30 bg-[#080808] flex items-center px-4 shrink-0">
         <div className="flex gap-6 text-[9px] font-mono text-cyan-900/70 uppercase">
           <span className="text-cyan-400/90">// {APP_BUILD_LABEL}</span>
-          <span>// PHYSICS: Pext + 1/r2 SHIELDING REPULSION</span>
+          <span>// PHYSICS: Pext + BUBBLE FRESNEL + MULTI-LIGHT</span>
           <span>// GRAY = LOCKED BY DEPENDENCIES</span>
           <span className="text-cyan-500/80">// PATH-TO-RICIS HIGHLIGHT</span>
         </div>
