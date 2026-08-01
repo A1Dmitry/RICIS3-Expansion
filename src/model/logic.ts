@@ -1,7 +1,6 @@
 import { MapState, Axiom, ProblemNode, DependencyEdge, Proof, ProofStep } from './types';
-import { catalogExhausted, applyAgentDiscoveries } from './agent';
 
-/** Локальный пустой каталог (полный seed может быть восстановлен позже). */
+/** Каталог реальных проблем для фрактального расширения (без фейковых имён). */
 const KNOWN_SINGULARITY_PROBLEMS: ProblemNode[] = [];
 
 export function generateProof(node: ProblemNode): Proof {
@@ -70,7 +69,6 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
   }
 
   const newNodes: ProblemNode[] = [];
-  const stamp = Date.now();
 
   for (let i = 0; i < pickedFromCatalog.length; i++) {
     const src = pickedFromCatalog[i];
@@ -86,38 +84,10 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
     });
   }
 
-  if (newNodes.length === 0 && catalogExhausted(map)) {
-    return applyAgentDiscoveries(map, solvedNodeId, MAX_NEW);
-  }
-
-  while (newNodes.length < MAX_NEW) {
-    const i = newNodes.length + 1;
-    const branchLabel =
-      i === 1
-        ? 'Уточнение: ' + solved.title
-        : 'Связанная задача: ' + solved.title + ' (ветвь ' + i + ')';
-    newNodes.push({
-      id: solvedNodeId + '-branch-' + i + '-' + stamp,
-      title: branchLabel,
-      description: 'Фрактальное уточнение задачи «' + solved.title + '».',
-      state: 'unresolved',
-      type: 'derived_problem',
-      targetFunction: 'Refine(' + solved.targetFunction + ', ' + i + ')',
-      zoneIds: [...solved.zoneIds],
-      dependencyIds: [solvedNodeId],
-      dependentIds: [],
-      fractalDepth: solved.fractalDepth + 1,
-      economic: {
-        costUnresolved: Math.round(solved.economic.costUnresolved * 0.5),
-        costToSolve: Math.round(solved.economic.costToSolve * 0.3),
-        marketGain: Math.round(solved.economic.marketGain * 0.4),
-        riskLoss: Math.round(solved.economic.riskLoss * 0.5),
-      },
-      rewardClass: solved.rewardClass,
-      singularityHint: solved.singularityHint
-        ? 'Уточнение: ' + solved.singularityHint
-        : undefined,
-    });
+  // Без фейковых имён: не создаём «Уточнение / Связанная задача».
+  // Если каталог пуст — не подмешиваем синтетические узлы агента с шаблонными названиями.
+  if (newNodes.length === 0) {
+    return map;
   }
 
   const newEdges: DependencyEdge[] = newNodes.map(n => ({
@@ -171,9 +141,21 @@ export function solveNodeLogic(map: MapState, nodeId: string): MapState {
     usedByNodeIds: []
   };
 
-  const updatedEdges = map.edges.map(e =>
-    e.fromId === node.id ? { ...e, stateColor: 'green' as const } : e
-  );
+  // Ребро зелёное только если оба конца resolved (открыты и решены).
+  const nodeState = (id: string) =>
+    id === nodeId
+      ? 'resolved'
+      : updatedNodes.find(n => n.id === id)?.state ?? 'unresolved';
+  const updatedEdges = map.edges.map(e => {
+    const bothResolved =
+      nodeState(e.fromId) === 'resolved' && nodeState(e.toId) === 'resolved';
+    if (bothResolved) return { ...e, stateColor: 'green' as const };
+    // Если один из концов только что решён, а второй нет — жёлтый (частично)
+    if (e.fromId === nodeId || e.toId === nodeId) {
+      return { ...e, stateColor: 'yellow' as const };
+    }
+    return e;
+  });
 
   const proof = generateProof(node);
 
