@@ -3,23 +3,7 @@ import { MapState, Axiom, ProblemNode, DependencyEdge, Proof, ProofStep } from '
 /** Каталог реальных проблем для фрактального расширения (без фейковых имён). */
 const KNOWN_SINGULARITY_PROBLEMS: ProblemNode[] = [];
 
-export function generateProof(node: ProblemNode, allAxioms: Axiom[]): Proof {
-  const latexSteps: string[] = [];
-  latexSteps.push('\\section*{RICIS-III Proof: ' + node.title + '}');
-
-  latexSteps.push('\\textbf{Embedded Agent Initialized...}');
-  if (allAxioms.length > 0) {
-    latexSteps.push('\\textbf{Applying Network Axioms (Method RICIS):}');
-    latexSteps.push('\\begin{itemize}');
-    allAxioms.slice(-3).forEach(ax => {
-      latexSteps.push(`\\item ${ax.formalStatement}`);
-    });
-    latexSteps.push('\\end{itemize}');
-  }
-  
-  latexSteps.push('\\textbf{Target Function:} $' + node.targetFunction + '$');
-
-
+export async function generateProof(node: ProblemNode, allAxioms: Axiom[]): Promise<Proof> {
   const steps: ProofStep[] = [
     { phase: -1, name: 'L1_IDENTITY', action: 'Verify identity and types', expression: 'T(' + node.targetFunction + ')' },
     { phase: 0.5, name: 'SEMANTIC INDEXING (SP4)', action: 'Index singularities by parent expression', expression: '0_{' + node.targetFunction + '}' },
@@ -28,21 +12,34 @@ export function generateProof(node: ProblemNode, allAxioms: Axiom[]): Proof {
     { phase: 6, name: 'L1 verification', action: 'Final consistency check', expression: 'Result equiv Result' }
   ];
 
-  steps.forEach(s => {
-    latexSteps.push('\\subsection*{Phase ' + s.phase + ': ' + s.name + '}');
-    latexSteps.push('Action: ' + s.action);
-    latexSteps.push('$$ ' + s.expression + ' $$');
-  });
+  let latex = "";
+  try {
+    const res = await fetch('/api/generateProof', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        title: node.title,
+        targetFunction: node.targetFunction,
+        axioms: allAxioms
+      })
+    });
+    const data = await res.json();
+    if (data.proofLatex) {
+      latex = data.proofLatex;
+    } else {
+      latex = "Error generating proof: " + (data.error || "Unknown error");
+    }
+  } catch (e: any) {
+    latex = "Network error while generating proof: " + e.message;
+  }
 
   const finalResult = 'Axiom Extracted: ' + node.id + '_resolved';
-  latexSteps.push('\\textbf{Final Result:} ' + finalResult);
-
   return {
     nodeId: node.id,
     targetFunction: node.targetFunction,
     steps,
     finalResult,
-    latex: latexSteps.join('\n\n')
+    latex
   };
 }
 
@@ -125,7 +122,7 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
   };
 }
 
-export function solveNodeLogic(map: MapState, nodeId: string): MapState {
+export async function solveNodeLogic(map: MapState, nodeId: string): Promise<MapState> {
   const node = map.nodes.find(n => n.id === nodeId);
   if (!node || node.state === 'resolved') return map;
 
@@ -169,7 +166,7 @@ export function solveNodeLogic(map: MapState, nodeId: string): MapState {
     return e;
   });
 
-  const proof = generateProof(node, map.axioms);
+  const proof = await generateProof(node, map.axioms);
 
   const newMap = {
     ...map,

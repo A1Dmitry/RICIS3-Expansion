@@ -14,7 +14,7 @@ import {
 
 interface MapStore extends MapState {
   hydrated: boolean;
-  solveNode: (nodeId: string) => void;
+  solveNode: (nodeId: string) => Promise<void>;
   getLatexProof: (nodeId: string) => string | null;
   hydrate: () => Promise<void>;
   saveNow: () => Promise<boolean>;
@@ -50,14 +50,14 @@ export const useMapStore = create<MapStore>((set, get) => ({
     set({ ...state, hydrated: true });
   },
 
-  solveNode: (nodeId: string) => {
+  solveNode: async (nodeId: string) => {
     const state = get();
     const node = state.nodes.find(n => n.id === nodeId);
     if (!node || node.state === 'resolved' || state.proofs[nodeId]) {
       return;
     }
     if (!isNodeAvailable(node, state)) return;
-    const newState = solveNodeLogic(state, nodeId);
+    const newState = await solveNodeLogic(state, nodeId);
     set(newState);
     void saveMapToDb(newState);
   },
