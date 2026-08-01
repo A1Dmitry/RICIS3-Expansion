@@ -231,7 +231,31 @@ export function layoutNodes(
   return out;
 }
 
+/** Радиус сферы зоны: растёт с числом узлов в зоне (и их shielding). */
 export function zoneVisualRadius(zone: ScienceZone, nodes: ProblemNode[]): number {
+  const members = nodes.filter(
+    n => zone.nodeIds.includes(n.id) || n.zoneIds.includes(zone.id)
+  );
+  const count = members.length;
   const S = zoneShielding(zone, nodes);
-  return 3.8 + Math.sqrt(S) * 2.2;
+  // База + сильный вклад числа узлов + умеренный вклад shielding
+  const byCount = Math.sqrt(Math.max(1, count)) * 2.8;
+  const byShield = Math.sqrt(S) * 1.1;
+  return Math.min(28, 4.2 + byCount + byShield);
+}
+
+/**
+ * Визуальный радиус узла (~3× прежнего) пропорционален значимости
+ * для последующих открытий: dependents, shielding, reward, type.
+ */
+export function nodeVisualRadius(node: ProblemNode, allNodes: ProblemNode[]): number {
+  const S = nodeShielding(node);
+  const dependentBoost = 0.12 * (node.dependentIds?.length || 0);
+  const depGraphBoost = 0.04 * (node.dependencyIds?.length || 0);
+  // Нормируем относительно типичного S ~1..3
+  const significance = Math.min(1, (S / 3.2 + dependentBoost + depGraphBoost) / 1.6);
+  const coreBoost = node.type === 'core_singularity' ? 1.25 : 1.0;
+  // Прежний base ~0.52 → ~1.55–2.4 (примерно ×3)
+  const base = 1.55 + significance * 1.15;
+  return base * coreBoost;
 }
