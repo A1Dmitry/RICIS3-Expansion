@@ -55,8 +55,8 @@ export interface PressureLayoutParams {
 }
 
 const DEFAULT_ZONE: PressureLayoutParams = {
-  Pext: 0.12,
-  kRep: 28,
+  Pext: 0.015,
+  kRep: 120,
   steps: 120,
   dt: 0.45,
   damping: 0.84,
@@ -65,8 +65,8 @@ const DEFAULT_ZONE: PressureLayoutParams = {
 };
 
 const DEFAULT_NODE: PressureLayoutParams = {
-  Pext: 0.18,
-  kRep: 12,
+  Pext: 0.04,
+  kRep: 80,
   steps: 100,
   dt: 0.4,
   damping: 0.82,
@@ -103,10 +103,10 @@ export function relaxPressureRepulsion(
   for (let s = 0; s < steps; s++) {
     for (let i = 0; i < n; i++) {
       const Si = S[i];
-      const [nx, ny, nz] = normalize3(pos[i][0], pos[i][1], pos[i][2]);
-      let fx = -Pext * Si * nx;
-      let fy = -Pext * Si * ny;
-      let fz = -Pext * Si * nz;
+      // Spring attraction to origin
+      let fx = -Pext * Si * pos[i][0];
+      let fy = -Pext * Si * pos[i][1];
+      let fz = -Pext * Si * pos[i][2];
 
       for (let j = 0; j < n; j++) {
         if (i === j) continue;
@@ -189,15 +189,15 @@ export function layoutNodes(
       const dxz = pos[i][0] - zc[0];
       const dyz = pos[i][1] - zc[1];
       const dzz = pos[i][2] - zc[2];
-      const [nzx, nzy, nzz] = normalize3(dxz, dyz, dzz);
-      let fx = -P_zone * Si * nzx;
-      let fy = -P_zone * Si * nzy;
-      let fz = -P_zone * Si * nzz;
+      // Spring attraction to zone center
+      let fx = -P_zone * Si * dxz;
+      let fy = -P_zone * Si * dyz;
+      let fz = -P_zone * Si * dzz;
 
-      const [nox, noy, noz] = normalize3(pos[i][0], pos[i][1], pos[i][2]);
-      fx += -P_origin * Si * nox;
-      fy += -P_origin * Si * noy;
-      fz += -P_origin * Si * noz;
+      // Small spring attraction to global origin to keep whole system tight
+      fx += -P_origin * Si * pos[i][0];
+      fy += -P_origin * Si * pos[i][1];
+      fz += -P_origin * Si * pos[i][2];
 
       for (let j = 0; j < n; j++) {
         if (i === j) continue;
@@ -205,7 +205,7 @@ export function layoutNodes(
         const dy = pos[i][1] - pos[j][1];
         const dz = pos[i][2] - pos[j][2];
         const r2 = dx * dx + dy * dy + dz * dz + soft * soft;
-        if (r2 > 100) continue;
+        // if (r2 > 400) continue;
         const invR = 1 / Math.sqrt(r2);
         const mag = (kRep * (Si * S[j])) / r2;
         fx += dx * invR * mag;

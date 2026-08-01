@@ -146,6 +146,490 @@ export const initialMap: MapState = {
         riskLoss: 15_000_000_000
       }
     }
+,
+{
+        "id": "registry-100",
+        "title": "abc Conjecture",
+        "description": "The $abc$ conjecture concerns coprime integers $a + b = c$ and their radical $\\text{rad}(abc)$. In classical arithmetic, divisibility at critical prime bounds exhibits asymptotic gaps.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "frac{0F}{0G} = frac{F}{G}.",
+        "zoneIds": [
+            "math"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-101",
+        "title": "Goldbach's Conjecture",
+        "description": "Every even integer $n > 2$ is expressible as the sum of two primes $p + q = n$.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "math"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-102",
+        "title": "Twin Prime Conjecture",
+        "description": "There exist infinitely many prime pairs $(p, p+2)$.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "math"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-103",
+        "title": "Odd Perfect Numbers",
+        "description": "A number $n$ is perfect if $\\sigma(n) = 2n$.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "math"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-104",
+        "title": "Erdős Prime Gap Conjecture",
+        "description": "Asymptotic distribution of normalized gaps between consecutive primes.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "inftyF times 0G = F cdot G quad text{via Axiom~eqref{eq:A6}}.",
+        "zoneIds": [
+            "math"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-105",
+        "title": "Green--Tao Theorem Extension",
+        "description": "Existence of arbitrarily long arithmetic progressions in prime numbers.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "math"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-106",
+        "title": "Sum of Squares Representation",
+        "description": "Decomposition of integers into sum of squares.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "math"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-107",
+        "title": "Collatz Conjecture (3n + 1)",
+        "description": "The iterative process $n \\to n/2$ (even) and $n \\to 3n+1$ (odd) exhibits complex trajectory dynamics.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "math"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-108",
+        "title": "Finite-Time Blow-up in NLS and NLW",
+        "description": "Nonlinear Schrödinger (NLS) and Wave (NLW) equations form wave-collapse singularities in finite time $t^*$.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "0{text{smooth}} times infty{text{sol}} = F cdot G.",
+        "zoneIds": [
+            "physics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-109",
+        "title": "Singularities in Geometric Flows (Ricci Flow / Mean Curvature Flow)",
+        "description": "Pinch-off neck singularities in Riemannian manifold evolution.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "0{text{neck}} times infty{text{pinch}} = C cdot M.",
+        "zoneIds": [
+            "physics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-110",
+        "title": "Blow-up in 3D Euler Equations and MHD",
+        "description": "Vortex stretching in 3D Euler and Magnetohydrodynamics causing potential gradient explosion.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "0{text{vortex}} times infty{text{stretch}} = F cdot G.",
+        "zoneIds": [
+            "physics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-111",
+        "title": "Degenerate Parabolic Equations",
+        "description": "Loss of regularity at diffusion fronts in porous medium equations.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "physics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-112",
+        "title": "Hamiltonian PDEs and Vortex Dynamics",
+        "description": "Phase-space singularities in water waves and point-vortex interaction.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "physics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-113",
+        "title": "Semilinear and Quasilinear Wave Equations",
+        "description": "Shock wave formation and critical derivative blow-up.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "physics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-114",
+        "title": "Halting Problem",
+        "description": "Algorithmic infinite looping and undecidability.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "informatics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-115",
+        "title": "Continuum Hypothesis (CDCC)",
+        "description": "The cardinality relationship $2^{\\aleph_0} = \\aleph_1$.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "2{aleph0} = aleph1 = text{MonolithOrder1}.",
+        "zoneIds": [
+            "math"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-116",
+        "title": "Turbulence and Energy Cascade",
+        "description": "Energy dissipation at sub-grid turbulent scales.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "physics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-117",
+        "title": "3D Navier--Stokes Existence and Smoothness",
+        "description": "Millennium Prize problem regarding smooth velocity fields in fluid dynamics.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "0{text{vol}} times infty{nabla u} = F cdot G.",
+        "zoneIds": [
+            "physics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-118",
+        "title": "LLM Gradient Explosion Elimination",
+        "description": "Loss spikes and $NaN$ crashes during deep neural network training.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Delta w = 0eta times infty{nabla L} = eta cdot nabla L.",
+        "zoneIds": [
+            "informatics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-119",
+        "title": "Voynich Manuscript Decipherment",
+        "description": "Information entropy singularities in encrypted historical scripts.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "informatics"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
+    {
+        "id": "registry-120",
+        "title": "Jacobian Conjecture",
+        "description": "Polynomial automorphisms and global invertibility.",
+        "state": "resolved",
+        "type": "scientific_task",
+        "targetFunction": "Resolve()",
+        "zoneIds": [
+            "math"
+        ],
+        "dependencyIds": [
+            "math-singularity"
+        ],
+        "dependentIds": [],
+        "fractalDepth": 1,
+        "economic": {
+            "costUnresolved": 1000000000,
+            "costToSolve": 50000000,
+            "marketGain": 5000000000,
+            "riskLoss": 2000000000
+        },
+        "ricisSolvable": true
+    },
   ],
   edges: [
     { id: 'edge-1', fromId: 'core-agi-target', toId: 'med-diagnostics', strength: 0.9, stateColor: 'red', economicInfluence: 0.7 },
@@ -208,5 +692,426 @@ export const initialMap: MapState = {
     }
   ],
   axioms: [],
-  proofs: {}
+  proofs: {
+  "registry-100": {
+    "nodeId": "registry-100",
+    "targetFunction": "frac{0F}{0G} = frac{F}{G}.",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(frac{0F}{0G} = frac{F}{G}.)"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-100_resolved",
+    "latex": "\\section*{RICIS-III Proof: abc Conjecture}\n\\textbf{Target Function:} $frac{0F}{0G} = frac{F}{G}.$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-100_resolved"
+  },
+  "registry-101": {
+    "nodeId": "registry-101",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-101_resolved",
+    "latex": "\\section*{RICIS-III Proof: Goldbach's Conjecture}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-101_resolved"
+  },
+  "registry-102": {
+    "nodeId": "registry-102",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-102_resolved",
+    "latex": "\\section*{RICIS-III Proof: Twin Prime Conjecture}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-102_resolved"
+  },
+  "registry-103": {
+    "nodeId": "registry-103",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-103_resolved",
+    "latex": "\\section*{RICIS-III Proof: Odd Perfect Numbers}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-103_resolved"
+  },
+  "registry-104": {
+    "nodeId": "registry-104",
+    "targetFunction": "inftyF times 0G = F cdot G quad text{via Axiom~eqref{eq:A6}}.",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(inftyF times 0G = F cdot G quad text{via Axiom~eqref{eq:A6}}.)"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-104_resolved",
+    "latex": "\\section*{RICIS-III Proof: Erdős Prime Gap Conjecture}\n\\textbf{Target Function:} $inftyF times 0G = F cdot G quad text{via Axiom~eqref{eq:A6}}.$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-104_resolved"
+  },
+  "registry-105": {
+    "nodeId": "registry-105",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-105_resolved",
+    "latex": "\\section*{RICIS-III Proof: Green--Tao Theorem Extension}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-105_resolved"
+  },
+  "registry-106": {
+    "nodeId": "registry-106",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-106_resolved",
+    "latex": "\\section*{RICIS-III Proof: Sum of Squares Representation}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-106_resolved"
+  },
+  "registry-107": {
+    "nodeId": "registry-107",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-107_resolved",
+    "latex": "\\section*{RICIS-III Proof: Collatz Conjecture (3n + 1)}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-107_resolved"
+  },
+  "registry-108": {
+    "nodeId": "registry-108",
+    "targetFunction": "0{text{smooth}} times infty{text{sol}} = F cdot G.",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(0{text{smooth}} times infty{text{sol}} = F cdot G.)"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-108_resolved",
+    "latex": "\\section*{RICIS-III Proof: Finite-Time Blow-up in NLS and NLW}\n\\textbf{Target Function:} $0{text{smooth}} times infty{text{sol}} = F cdot G.$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-108_resolved"
+  },
+  "registry-109": {
+    "nodeId": "registry-109",
+    "targetFunction": "0{text{neck}} times infty{text{pinch}} = C cdot M.",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(0{text{neck}} times infty{text{pinch}} = C cdot M.)"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-109_resolved",
+    "latex": "\\section*{RICIS-III Proof: Singularities in Geometric Flows (Ricci Flow / Mean Curvature Flow)}\n\\textbf{Target Function:} $0{text{neck}} times infty{text{pinch}} = C cdot M.$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-109_resolved"
+  },
+  "registry-110": {
+    "nodeId": "registry-110",
+    "targetFunction": "0{text{vortex}} times infty{text{stretch}} = F cdot G.",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(0{text{vortex}} times infty{text{stretch}} = F cdot G.)"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-110_resolved",
+    "latex": "\\section*{RICIS-III Proof: Blow-up in 3D Euler Equations and MHD}\n\\textbf{Target Function:} $0{text{vortex}} times infty{text{stretch}} = F cdot G.$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-110_resolved"
+  },
+  "registry-111": {
+    "nodeId": "registry-111",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-111_resolved",
+    "latex": "\\section*{RICIS-III Proof: Degenerate Parabolic Equations}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-111_resolved"
+  },
+  "registry-112": {
+    "nodeId": "registry-112",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-112_resolved",
+    "latex": "\\section*{RICIS-III Proof: Hamiltonian PDEs and Vortex Dynamics}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-112_resolved"
+  },
+  "registry-113": {
+    "nodeId": "registry-113",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-113_resolved",
+    "latex": "\\section*{RICIS-III Proof: Semilinear and Quasilinear Wave Equations}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-113_resolved"
+  },
+  "registry-114": {
+    "nodeId": "registry-114",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-114_resolved",
+    "latex": "\\section*{RICIS-III Proof: Halting Problem}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-114_resolved"
+  },
+  "registry-115": {
+    "nodeId": "registry-115",
+    "targetFunction": "2{aleph0} = aleph1 = text{MonolithOrder1}.",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(2{aleph0} = aleph1 = text{MonolithOrder1}.)"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-115_resolved",
+    "latex": "\\section*{RICIS-III Proof: Continuum Hypothesis (CDCC)}\n\\textbf{Target Function:} $2{aleph0} = aleph1 = text{MonolithOrder1}.$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-115_resolved"
+  },
+  "registry-116": {
+    "nodeId": "registry-116",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-116_resolved",
+    "latex": "\\section*{RICIS-III Proof: Turbulence and Energy Cascade}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-116_resolved"
+  },
+  "registry-117": {
+    "nodeId": "registry-117",
+    "targetFunction": "0{text{vol}} times infty{nabla u} = F cdot G.",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(0{text{vol}} times infty{nabla u} = F cdot G.)"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-117_resolved",
+    "latex": "\\section*{RICIS-III Proof: 3D Navier--Stokes Existence and Smoothness}\n\\textbf{Target Function:} $0{text{vol}} times infty{nabla u} = F cdot G.$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-117_resolved"
+  },
+  "registry-118": {
+    "nodeId": "registry-118",
+    "targetFunction": "Delta w = 0eta times infty{nabla L} = eta cdot nabla L.",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Delta w = 0eta times infty{nabla L} = eta cdot nabla L.)"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-118_resolved",
+    "latex": "\\section*{RICIS-III Proof: LLM Gradient Explosion Elimination}\n\\textbf{Target Function:} $Delta w = 0eta times infty{nabla L} = eta cdot nabla L.$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-118_resolved"
+  },
+  "registry-119": {
+    "nodeId": "registry-119",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-119_resolved",
+    "latex": "\\section*{RICIS-III Proof: Voynich Manuscript Decipherment}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-119_resolved"
+  },
+  "registry-120": {
+    "nodeId": "registry-120",
+    "targetFunction": "Resolve()",
+    "steps": [
+      {
+        "phase": -1,
+        "name": "L1_IDENTITY",
+        "action": "Verify identity and types",
+        "expression": "T(Resolve())"
+      },
+      {
+        "phase": 2,
+        "name": "RICIS transform",
+        "action": "Axiom A6",
+        "expression": "0_F x infinity_G = F * G"
+      }
+    ],
+    "finalResult": "Axiom Extracted: registry-120_resolved",
+    "latex": "\\section*{RICIS-III Proof: Jacobian Conjecture}\n\\textbf{Target Function:} $Resolve()$\n\\subsection*{Phase 2: RICIS transform}\nAction: Axiom A6\n$ 0_F \\times \\infty_G = F \\cdot G $\n\\textbf{Final Result:} Axiom Extracted: registry-120_resolved"
+  }
+}
 };

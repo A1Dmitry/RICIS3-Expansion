@@ -87,32 +87,42 @@ export function ZoneBubble({
 export function NodeLabel({
   position,
   text,
+  subtitle,
   offsetY = 0.55,
 }: {
   position: [number, number, number];
   text: string;
+  subtitle?: string;
   offsetY?: number;
 }) {
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas');
     const w = 512;
-    const h = 96;
+    const h = subtitle ? 128 : 96;
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new THREE.CanvasTexture(canvas);
     ctx.clearRect(0, 0, w, h);
-    ctx.font = 'bold 28px Inter, system-ui, sans-serif';
+    
+    ctx.font = 'bold 26px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    // фон
+    
     const label = text.length > 42 ? text.slice(0, 40) + '…' : text;
-    const metrics = ctx.measureText(label);
-    const padX = 18;
-    const boxW = Math.min(w - 8, metrics.width + padX * 2);
-    const boxH = 44;
+    const sub = subtitle ? (subtitle.length > 50 ? subtitle.slice(0, 48) + '…' : subtitle) : '';
+    
+    const metrics1 = ctx.measureText(label);
+    
+    ctx.font = 'normal 18px Inter, system-ui, sans-serif';
+    const metrics2 = sub ? ctx.measureText(sub) : { width: 0 };
+    
+    const padX = 24;
+    const boxW = Math.min(w - 8, Math.max(metrics1.width, metrics2.width) + padX * 2);
+    const boxH = subtitle ? 72 : 44;
     const bx = (w - boxW) / 2;
     const by = (h - boxH) / 2;
+    
     ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
     ctx.strokeStyle = 'rgba(34, 211, 238, 0.45)';
     ctx.lineWidth = 2;
@@ -126,15 +136,27 @@ export function NodeLabel({
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#e0f2fe';
-    ctx.fillText(label, w / 2, h / 2 + 1);
+    
+    if (subtitle) {
+      ctx.font = 'bold 24px Inter, system-ui, sans-serif';
+      ctx.fillStyle = '#e0f2fe';
+      ctx.fillText(label, w / 2, by + boxH / 2 - 12);
+      ctx.font = 'normal 18px Inter, system-ui, sans-serif';
+      ctx.fillStyle = '#94a3b8'; // text-slate-400
+      ctx.fillText(sub, w / 2, by + boxH / 2 + 14);
+    } else {
+      ctx.font = 'bold 24px Inter, system-ui, sans-serif';
+      ctx.fillStyle = '#e0f2fe';
+      ctx.fillText(label, w / 2, h / 2 + 1);
+    }
+    
     const tex = new THREE.CanvasTexture(canvas);
     tex.needsUpdate = true;
     return tex;
-  }, [text]);
+  }, [text, subtitle]);
 
   return (
-    <sprite position={[position[0], position[1] + offsetY, position[2]]} scale={[3.2, 0.6, 1]}>
+    <sprite position={[position[0], position[1] + offsetY, position[2]]} scale={[3.2, subtitle ? 0.8 : 0.6, 1]}>
       <spriteMaterial map={texture} transparent depthTest={false} depthWrite={false} />
     </sprite>
   );

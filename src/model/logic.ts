@@ -3,16 +3,28 @@ import { MapState, Axiom, ProblemNode, DependencyEdge, Proof, ProofStep } from '
 /** Каталог реальных проблем для фрактального расширения (без фейковых имён). */
 const KNOWN_SINGULARITY_PROBLEMS: ProblemNode[] = [];
 
-export function generateProof(node: ProblemNode): Proof {
+export function generateProof(node: ProblemNode, allAxioms: Axiom[]): Proof {
   const latexSteps: string[] = [];
   latexSteps.push('\\section*{RICIS-III Proof: ' + node.title + '}');
+
+  latexSteps.push('\\textbf{Embedded Agent Initialized...}');
+  if (allAxioms.length > 0) {
+    latexSteps.push('\\textbf{Applying Network Axioms (Method RICIS):}');
+    latexSteps.push('\\begin{itemize}');
+    allAxioms.slice(-3).forEach(ax => {
+      latexSteps.push(`\\item ${ax.formalStatement}`);
+    });
+    latexSteps.push('\\end{itemize}');
+  }
+  
   latexSteps.push('\\textbf{Target Function:} $' + node.targetFunction + '$');
+
 
   const steps: ProofStep[] = [
     { phase: -1, name: 'L1_IDENTITY', action: 'Verify identity and types', expression: 'T(' + node.targetFunction + ')' },
     { phase: 0.5, name: 'SEMANTIC INDEXING (SP4)', action: 'Index singularities by parent expression', expression: '0_{' + node.targetFunction + '}' },
     { phase: 1, name: 'SAFETY CHECK (SP2)', action: 'Algebraic reduction before singularity evaluation', expression: 'Reduced(' + node.targetFunction + ')' },
-    { phase: 2, name: 'RICIS transforms', action: 'Apply A6 (General) and A4', expression: '0_F x infinity_G = F * G' },
+    { phase: 2, name: 'RICIS transforms', action: 'Apply A6 (General) and available network axioms', expression: '0_F x infinity_G = F * G' },
     { phase: 6, name: 'L1 verification', action: 'Final consistency check', expression: 'Result equiv Result' }
   ];
 
@@ -157,7 +169,7 @@ export function solveNodeLogic(map: MapState, nodeId: string): MapState {
     return e;
   });
 
-  const proof = generateProof(node);
+  const proof = generateProof(node, map.axioms);
 
   const newMap = {
     ...map,

@@ -128,10 +128,28 @@ export const Map3D: React.FC = () => {
   const zoneRadii = useMemo(() => {
     const r: Record<string, number> = {};
     map.zones.forEach(z => {
-      r[z.id] = zoneVisualRadius(z, map.nodes);
+      const members = map.nodes.filter(n => z.nodeIds.includes(n.id) || n.zoneIds.includes(z.id));
+      const zPos = zonePositions[z.id];
+      if (zPos && members.length > 0) {
+        let maxDist = 0;
+        members.forEach(m => {
+          const mPos = nodePositions[m.id];
+          if (mPos) {
+            const dx = mPos[0] - zPos[0];
+            const dy = mPos[1] - zPos[1];
+            const dz = mPos[2] - zPos[2];
+            const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            // node visual radius approximately up to 5-10
+            maxDist = Math.max(maxDist, dist + 15); 
+          }
+        });
+        r[z.id] = Math.max(zoneVisualRadius(z, map.nodes), maxDist);
+      } else {
+        r[z.id] = zoneVisualRadius(z, map.nodes);
+      }
     });
     return r;
-  }, [map.zones, map.nodes]);
+  }, [map.zones, map.nodes, zonePositions, nodePositions]);
 
   const nodeStateById = useMemo(() => {
     const m: Record<string, string> = {};
@@ -351,6 +369,7 @@ export const Map3D: React.FC = () => {
                   <NodeLabel
                     position={pos}
                     text={node.title}
+                    subtitle={map.zones.find(z => z.id === node.zoneIds[0])?.name || node.zoneIds[0]}
                     offsetY={radius + 0.35}
                   />
                 </group>
