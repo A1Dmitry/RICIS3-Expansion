@@ -11,8 +11,8 @@ import {
   countAvailable,
   isRicisCore,
 } from '../model/access';
-import { layoutZones, layoutNodes, zoneVisualRadius } from '../model/physics';
-import { ZoneBubble, NodeBubble } from './Bubbles';
+import { layoutZones, layoutNodes, zoneVisualRadius, nodeVisualRadius } from '../model/physics';
+import { ZoneBubble, NodeBubble, NodeLabel } from './Bubbles';
 
 const zoneColors: Record<string, string> = {
   math: '#3b82f6',
@@ -133,6 +133,14 @@ export const Map3D: React.FC = () => {
     return r;
   }, [map.zones, map.nodes]);
 
+  const nodeStateById = useMemo(() => {
+    const m: Record<string, string> = {};
+    map.nodes.forEach(n => {
+      m[n.id] = n.state;
+    });
+    return m;
+  }, [map.nodes]);
+
   const edgesLines = useMemo(() => {
     return map.edges.map(edge => {
       const fromPos = nodePositions[edge.fromId];
@@ -141,6 +149,21 @@ export const Map3D: React.FC = () => {
       const onPath =
         pathEdgeKeys.has(edge.fromId + '|' + edge.toId) ||
         pathEdgeKeys.has(edge.toId + '|' + edge.fromId);
+      const fromResolved = nodeStateById[edge.fromId] === 'resolved';
+      const toResolved = nodeStateById[edge.toId] === 'resolved';
+      // Зелёный только если оба узла отношения открыты и решены
+      let color = '#ef4444';
+      let opacity = 0.3;
+      if (onPath) {
+        color = '#22d3ee';
+        opacity = 1;
+      } else if (fromResolved && toResolved) {
+        color = '#22c55e';
+        opacity = 0.95;
+      } else if (fromResolved || toResolved) {
+        color = '#eab308';
+        opacity = 0.55;
+      }
       const points = [new THREE.Vector3(...fromPos), new THREE.Vector3(...toPos)];
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       return (
@@ -149,21 +172,15 @@ export const Map3D: React.FC = () => {
           object={new THREE.Line(
             geometry,
             new THREE.LineBasicMaterial({
-              color: onPath
-                ? '#22d3ee'
-                : edge.stateColor === 'green'
-                ? '#22c55e'
-                : edge.stateColor === 'yellow'
-                ? '#eab308'
-                : '#ef4444',
-              opacity: onPath ? 1 : 0.3,
+              color,
+              opacity,
               transparent: true,
             })
           )}
         />
       );
     });
-  }, [map.edges, nodePositions, pathEdgeKeys]);
+  }, [map.edges, nodePositions, pathEdgeKeys, nodeStateById]);
 
   return (
     <div className="w-full h-screen bg-[#050505] text-[#e0e0e0] font-sans overflow-hidden flex flex-col">
@@ -272,7 +289,7 @@ export const Map3D: React.FC = () => {
           </section>
 
           <p className="text-[9px] text-gray-600 mt-auto leading-snug">
-            Пузыри зон и узлов: fresnel + multi-light. Серые — locked.
+            Зоны растут с числом узлов. Размер узла — значимость. Подписи — реальные названия.
           </p>
         </aside>
 
@@ -310,26 +327,33 @@ export const Map3D: React.FC = () => {
               else if (node.state === 'partial') color = '#eab308';
               if (onPath) color = locked ? '#94a3b8' : '#22d3ee';
 
-              const baseR = isCore ? 0.95 : 0.52;
-              const radius = isSelected ? baseR * 1.35 : onPath ? baseR * 1.15 : baseR;
+              // Размер ≈ ×3 прежнего, пропорционален значимости для последующих открытий
+              const baseR = nodeVisualRadius(node, map.nodes);
+              const radius = isSelected ? baseR * 1.28 : onPath ? baseR * 1.12 : baseR;
               const emissive = isSelected ? '#22d3ee' : onPath ? '#0891b2' : isCore ? '#155e75' : color;
               const emissiveIntensity = isSelected ? 0.65 : onPath ? 0.45 : isCore ? 0.35 : locked ? 0.08 : 0.22;
 
               return (
-                <NodeBubble
-                  key={node.id}
-                  position={pos}
-                  color={color}
-                  radius={radius}
-                  emissive={emissive}
-                  emissiveIntensity={emissiveIntensity}
-                  opacity={locked ? 0.5 : 0.92}
-                  locked={locked}
-                  onClick={e => {
-                    e.stopPropagation();
-                    setSelectedNodeId(node.id);
-                  }}
-                />
+                <group key={node.id}>
+                  <NodeBubble
+                    position={pos}
+                    color={color}
+                    radius={radius}
+                    emissive={emissive}
+                    emissiveIntensity={emissiveIntensity}
+                    opacity={locked ? 0.5 : 0.92}
+                    locked={locked}
+                    onClick={e => {
+                      e.stopPropagation();
+                      setSelectedNodeId(node.id);
+                    }}
+                  />
+                  <NodeLabel
+                    position={pos}
+                    text={node.title}
+                    offsetY={radius + 0.35}
+                  />
+                </group>
               );
             })}
           </Canvas>
@@ -404,9 +428,9 @@ export const Map3D: React.FC = () => {
       <footer className="h-8 border-t border-cyan-900/30 bg-[#080808] flex items-center px-4 shrink-0">
         <div className="flex gap-6 text-[9px] font-mono text-cyan-900/70 uppercase">
           <span className="text-cyan-400/90">// {APP_BUILD_LABEL}</span>
-          <span>// PHYSICS: Pext + BUBBLE FRESNEL + MULTI-LIGHT</span>
-          <span>// GRAY = LOCKED BY DEPENDENCIES</span>
-          <span className="text-cyan-500/80">// PATH-TO-RICIS HIGHLIGHT</span>
+          <span>// ZONES GROW BY NODE COUNT · NODE SIZE = SIGNIFICANCE</span>
+          <span>// EDGE GREEN = BOTH ENDS RESOLVED</span>
+          <span className="text-cyan-500/80">// LABELS = REAL PROBLEM TITLES</span>
         </div>
       </footer>
     </div>
