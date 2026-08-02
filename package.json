@@ -1,16 +1,18 @@
 {
   "name": "ricis3-expansion",
   "private": false,
-  "version": "0.3.12",
+  "version": "0.3.13",
   "description": "RICIS-III Singularity Map — интерактивная 3D-карта проблем сингулярности с формальным ядром RICIS-III",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "start": "node dist/server.cjs",
-    "preview": "node dist/server.cjs",
+    "dev": "vite --port=3000 --host=0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --port=4173 --host=0.0.0.0",
+    "start": "vite preview --port=4173 --host=0.0.0.0",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "build:server": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "dev:server": "tsx server.ts"
   },
   "keywords": [
     "ricis",
