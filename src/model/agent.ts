@@ -95,7 +95,7 @@ export async function discoverNewProblems(
   anchorNodeId: string,
   maxNew = 2,
   extraKeys?: Set<string>
-): Promise<{ nodes: ProblemNode[]; edges: DependencyEdge[] }> {
+): Promise<{ nodes: ProblemNode[]; edges: DependencyEdge[]; error?: string }> {
   const anchor = map.nodes.find(n => n.id === anchorNodeId);
   if (!anchor) return { nodes: [], edges: [] };
 
@@ -118,11 +118,23 @@ export async function discoverNewProblems(
       body: JSON.stringify({ parentNode: anchor, existingTitles }),
     });
     const data = await res.json();
+    if (!res.ok) {
+      let errMsg = data.error || 'Unknown server error';
+      if (typeof errMsg === 'string' && errMsg.includes('429')) {
+        errMsg = 'Закончилась квота (лицензия) на API (ошибка 429). Подождите или проверьте ключ.';
+      } else if (typeof errMsg === 'string' && errMsg.includes('404')) {
+        errMsg = 'Модель недоступна или отключена (ошибка 404).';
+      } else if (typeof errMsg === 'object' && JSON.stringify(errMsg).includes('429')) {
+        errMsg = 'Закончилась квота (лицензия) на API (ошибка 429). Подождите или проверьте ключ.';
+      }
+      return { nodes: [], edges: [], error: errMsg };
+    }
     if (data.tasks && Array.isArray(data.tasks)) {
       fetchedTasks = data.tasks;
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('Failed to discover tasks via API', e);
+    return { nodes: [], edges: [], error: e.message };
   }
 
   const nodes: ProblemNode[] = [];
@@ -186,6 +198,7 @@ export type DiscoveryReport = {
   expandedAnchors: string[];
   skippedDuplicates: number;
   frontierSize: number;
+  error?: string;
 };
 
 /**
@@ -224,12 +237,22 @@ export async function applyAgentDiscoveries(
 
   for (const anchor of anchors) {
     const beforeKeys = keys.size;
-    const { nodes, edges } = await discoverNewProblems(
+    const { nodes, edges, error } = await discoverNewProblems(
       working,
       anchor.id,
       maxNewPerAnchor,
       keys
     );
+    if (error) {
+      return {
+        map: working,
+        added,
+        expandedAnchors,
+        skippedDuplicates,
+        frontierSize: nodesWithoutLeaves(map).length,
+        error
+      };
+    }
     if (nodes.length === 0) {
       skippedDuplicates += beforeKeys === keys.size ? 1 : 0;
       continue;

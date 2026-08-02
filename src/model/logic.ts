@@ -5,8 +5,7 @@ import {
   repairAgentLatex,
 } from './latexGuard';
 
-/** Catalog of real problems for fractal expansion (no fake names). */
-const KNOWN_SINGULARITY_PROBLEMS: ProblemNode[] = [];
+import { KNOWN_SINGULARITY_PROBLEMS } from './catalog';
 
 export async function generateProof(node: ProblemNode, allAxioms: Axiom[]): Promise<Proof> {
   const steps: ProofStep[] = [

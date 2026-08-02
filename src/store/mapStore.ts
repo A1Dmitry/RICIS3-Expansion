@@ -21,7 +21,7 @@ interface MapStore extends MapState {
   resetMap: () => Promise<void>;
   downloadJson: () => void;
   loadFromJson: (text: string) => Promise<boolean>;
-  runAgentDiscovery: (anchorNodeId?: string) => Promise<number>;
+  runAgentDiscovery: (anchorNodeId?: string) => Promise<{ added: number; error?: string }>;
   catalogRemaining: () => number;
   isCatalogExhausted: () => boolean;
 }
@@ -105,6 +105,6 @@ export const useMapStore = create<MapStore>((set, get) => ({
       set(report.map);
       void saveMapToDb(report.map);
     }
-    return report.added;
+    return { added: report.added, error: report.error };
   },
 }));

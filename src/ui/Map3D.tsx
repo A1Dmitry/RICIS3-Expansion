@@ -111,13 +111,17 @@ export const Map3D: React.FC = () => {
   };
 
   const handleAgentDiscovery = async () => {
-    const added = await map.runAgentDiscovery(selectedNodeId || undefined);
-    setAgentMsg(
-      added > 0
-        ? 'Агент добавил ' + added + ' новых проблем в граф.'
-        : 'Агент не нашёл новых кандидатов.'
-    );
-    setTimeout(() => setAgentMsg(null), 4000);
+    const res = await map.runAgentDiscovery(selectedNodeId || undefined);
+    if (res.error) {
+      setAgentMsg('Ошибка агента: ' + res.error);
+    } else {
+      setAgentMsg(
+        res.added > 0
+          ? 'Агент добавил ' + res.added + ' новых проблем в граф.'
+          : 'Агент не нашёл новых кандидатов.'
+      );
+    }
+    setTimeout(() => setAgentMsg(null), 5000);
   };
 
   const unlockReqs = useMemo(() => {

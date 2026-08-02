@@ -43,7 +43,7 @@ ${axiomList}
 Provide the output as a valid LaTeX document section. Use mathematical notation and refer to the provided axioms if applicable. Keep it concise, professional, and do not use generic AI filler.\nSTRICT LaTeX OUTPUT RULES:\n1. Return ONLY a FRAGMENT: paragraphs and math environments. NO \\documentclass, NO \\usepackage, NO \\begin{document}, NO markdown.\n2. DO NOT use \\section, \\subsection, or \\chapter. Use \\textbf{...} for headings instead.\n3. ASCII math only: $\\infty$ $\\to$ $\\leq$ --- never unicode.\n4. Pair every $. Pair every \\begin{env}/\\end{env}. Allowed: equation*, align*, itemize, enumerate.\n5. Max 60 lines. No HTML, no JSON, no error messages.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.1-pro-preview",
         contents: prompt,
       });
 
@@ -87,13 +87,14 @@ Return the result STRICTLY as a JSON array of objects with the following keys:
 - "type": "scientific_task" or "core_singularity"
 Output ONLY valid JSON.`;
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.1-pro-preview",
         contents: prompt,
       });
       let text = response.text || "[]";
-      if (text.startsWith("```json")) text = text.substring(7);
-      if (text.startsWith("```")) text = text.substring(3);
-      if (text.endsWith("```")) text = text.substring(0, text.length - 3);
+      const match = text.match(/\[[\s\S]*\]/);
+      if (match) {
+        text = match[0];
+      }
       res.json({ tasks: JSON.parse(text.trim()) });
     } catch (e) {
       console.error(e);
