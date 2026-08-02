@@ -13,6 +13,7 @@ import {
 } from '../model/access';
 import { layoutZones, layoutNodes, zoneVisualRadius, nodeVisualRadius } from '../model/physics';
 import { ZoneBubble, NodeBubble, NodeLabel } from './Bubbles';
+import { downloadTexPreprint, type TexBridgeMode } from '../model/texPreprint';
 
 const zoneColors: Record<string, string> = {
   math: '#3b82f6',
@@ -62,6 +63,8 @@ export const Map3D: React.FC = () => {
   const [showProof, setShowProof] = useState(false);
   const [pathNodeIds, setPathNodeIds] = useState<string[]>([]);
   const [agentMsg, setAgentMsg] = useState<string | null>(null);
+  const [texMode, setTexMode] = useState<TexBridgeMode>('ricis_pure');
+  const [texMsg, setTexMsg] = useState<string | null>(null);
 
   const selectedNode = map.nodes.find(n => n.id === selectedNodeId) || null;
   const availability = useMemo(() => countAvailable(map), [map.nodes, map.edges]);
@@ -89,6 +92,22 @@ export const Map3D: React.FC = () => {
   const handleFindPathToRicis = () => {
     if (!selectedNodeId) return;
     setPathNodeIds(findPathToRicis(selectedNodeId, map));
+  };
+
+  const handleGenerateTex = () => {
+    if (!selectedNodeId) {
+      setTexMsg('Select a node on the map.');
+      setTimeout(() => setTexMsg(null), 3000);
+      return;
+    }
+    try {
+      const r = downloadTexPreprint(map, selectedNodeId, { mode: texMode });
+      setTexMsg('TEX: ' + r.filename + ' (' + r.nodeCount + ' nodes to root, mode ' + texMode + ')');
+      setTimeout(() => setTexMsg(null), 8000);
+    } catch (e) {
+      setTexMsg('TEX generation error');
+      setTimeout(() => setTexMsg(null), 4000);
+    }
   };
 
   const handleAgentDiscovery = async () => {
@@ -139,8 +158,7 @@ export const Map3D: React.FC = () => {
             const dy = mPos[1] - zPos[1];
             const dz = mPos[2] - zPos[2];
             const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            // node visual radius approximately up to 5-10
-            maxDist = Math.max(maxDist, dist + 15); 
+            maxDist = Math.max(maxDist, dist + 15);
           }
         });
         r[z.id] = Math.max(zoneVisualRadius(z, map.nodes), maxDist);
@@ -169,7 +187,6 @@ export const Map3D: React.FC = () => {
         pathEdgeKeys.has(edge.toId + '|' + edge.fromId);
       const fromResolved = nodeStateById[edge.fromId] === 'resolved';
       const toResolved = nodeStateById[edge.toId] === 'resolved';
-      // Зелёный только если оба узла отношения открыты и решены
       let color = '#ef4444';
       let opacity = 0.3;
       if (onPath) {
@@ -189,11 +206,7 @@ export const Map3D: React.FC = () => {
           key={edge.id}
           object={new THREE.Line(
             geometry,
-            new THREE.LineBasicMaterial({
-              color,
-              opacity,
-              transparent: true,
-            })
+            new THREE.LineBasicMaterial({ color, opacity, transparent: true })
           )}
         />
       );
@@ -213,22 +226,10 @@ export const Map3D: React.FC = () => {
           </span>
         </div>
         <div className="flex gap-6 text-[10px] font-mono">
-          <div className="flex flex-col">
-            <span className="text-gray-500">NODES</span>
-            <span className="text-cyan-200">{map.nodes.length}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-gray-500">AVAILABLE</span>
-            <span className="text-emerald-400">{availability.available}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-gray-500">LOCKED</span>
-            <span className="text-gray-400">{availability.locked}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-gray-500">RESOLVED</span>
-            <span className="text-green-400">{availability.resolved}</span>
-          </div>
+          <div className="flex flex-col"><span className="text-gray-500">NODES</span><span className="text-cyan-200">{map.nodes.length}</span></div>
+          <div className="flex flex-col"><span className="text-gray-500">AVAILABLE</span><span className="text-emerald-400">{availability.available}</span></div>
+          <div className="flex flex-col"><span className="text-gray-500">LOCKED</span><span className="text-gray-400">{availability.locked}</span></div>
+          <div className="flex flex-col"><span className="text-gray-500">RESOLVED</span><span className="text-green-400">{availability.resolved}</span></div>
         </div>
       </header>
 
@@ -238,56 +239,29 @@ export const Map3D: React.FC = () => {
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Science Zones</h3>
             <div className="space-y-2">
               {map.zones.map(zone => (
-                <div
-                  key={zone.id}
-                  className="flex items-center justify-between p-2 bg-neutral-900/40 border border-neutral-800/50 rounded"
-                >
+                <div key={zone.id} className="flex items-center justify-between p-2 bg-neutral-900/40 border border-neutral-800/50 rounded">
                   <span className="text-xs text-gray-300">{zone.name}</span>
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: zoneColors[zone.id] || '#fff' }}
-                  />
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: zoneColors[zone.id] || '#fff' }} />
                 </div>
               ))}
             </div>
           </section>
 
           <section>
-            <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">
-              Доступно к решению ({availableNodes.length})
-            </h3>
+            <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Доступно к решению ({availableNodes.length})</h3>
             <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {availableNodes.length === 0 && (
-                <p className="text-[10px] text-gray-600">Нет открытых узлов.</p>
-              )}
+              {availableNodes.length === 0 && (<p className="text-[10px] text-gray-600">Нет открытых узлов.</p>)}
               {availableNodes.map(n => (
-                <button
-                  key={n.id}
-                  type="button"
-                  onClick={() => setSelectedNodeId(n.id)}
-                  className={
-                    'w-full text-left px-2 py-1.5 text-[11px] rounded border transition-colors ' +
-                    (selectedNodeId === n.id
-                      ? 'border-cyan-500/60 bg-cyan-950/50 text-cyan-200'
-                      : 'border-neutral-800 bg-neutral-900/40 text-gray-300 hover:border-cyan-800/50 hover:text-cyan-300')
-                  }
-                >
+                <button key={n.id} type="button" onClick={() => setSelectedNodeId(n.id)}
+                  className={'w-full text-left px-2 py-1.5 text-[11px] rounded border transition-colors ' + (selectedNodeId === n.id ? 'border-cyan-500/60 bg-cyan-950/50 text-cyan-200' : 'border-neutral-800 bg-neutral-900/40 text-gray-300 hover:border-cyan-800/50 hover:text-cyan-300')}>
                   <span className="block truncate font-medium">{n.title}</span>
                   <span className="block text-[9px] text-gray-500 font-mono truncate">{n.id}</span>
                 </button>
               ))}
             </div>
-            {selectedNode &&
-              selectedNode.state !== 'resolved' &&
-              isNodeAvailable(selectedNode, map) && (
-                <button
-                  type="button"
-                  onClick={() => handleSolve(selectedNode.id)}
-                  className="mt-2 w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10px] uppercase tracking-wider rounded"
-                >
-                  Execute RICIS Solution
-                </button>
-              )}
+            {selectedNode && selectedNode.state !== 'resolved' && isNodeAvailable(selectedNode, map) && (
+              <button type="button" onClick={() => handleSolve(selectedNode.id)} className="mt-2 w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10px] uppercase tracking-wider rounded">Execute RICIS Solution</button>
+            )}
           </section>
 
           <section>
@@ -306,9 +280,7 @@ export const Map3D: React.FC = () => {
             {agentMsg && <p className="text-[10px] text-violet-300 mt-1">{agentMsg}</p>}
           </section>
 
-          <p className="text-[9px] text-gray-600 mt-auto leading-snug">
-            Зоны растут с числом узлов. Размер узла — значимость. Подписи — реальные названия.
-          </p>
+          <p className="text-[9px] text-gray-600 mt-auto leading-snug">Зоны растут с числом узлов. Размер узла — значимость. Подписи — реальные названия.</p>
         </aside>
 
         <div className="flex-1 relative bg-[radial-gradient(circle_at_center,_#0a0f1a_0%,_#050505_100%)]">
@@ -345,7 +317,6 @@ export const Map3D: React.FC = () => {
               else if (node.state === 'partial') color = '#eab308';
               if (onPath) color = locked ? '#94a3b8' : '#22d3ee';
 
-              // Размер ≈ ×3 прежнего, пропорционален значимости для последующих открытий
               const baseR = nodeVisualRadius(node, map.nodes);
               const radius = isSelected ? baseR * 1.28 : onPath ? baseR * 1.12 : baseR;
               const emissive = isSelected ? '#22d3ee' : onPath ? '#0891b2' : isCore ? '#155e75' : color;
@@ -422,6 +393,26 @@ export const Map3D: React.FC = () => {
                 )}
               </div>
               <code className="block text-[10px] bg-black p-2 rounded border border-gray-800 font-mono text-cyan-200 mb-3">{selectedNode.targetFunction}</code>
+              <div className="mb-3 border border-amber-900/40 rounded p-2 bg-amber-950/20 space-y-1.5">
+                <p className="text-[9px] font-bold uppercase text-amber-400/90 tracking-wider">Препринт TEX</p>
+                <p className="text-[9px] text-gray-500 leading-snug">
+                  Развёртка до корня графа (зависимости + рёбра). Два режима мостов.
+                </p>
+                <div className="flex flex-col gap-1">
+                  <label className="flex items-start gap-2 text-[10px] text-gray-300 cursor-pointer">
+                    <input type="radio" name="texMode" checked={texMode === 'ricis_pure'} onChange={() => setTexMode('ricis_pure')} className="mt-0.5" />
+                    <span><span className="text-cyan-300 font-semibold">RICIS-pure</span> — без классических lim / L'Hôpital</span>
+                  </label>
+                  <label className="flex items-start gap-2 text-[10px] text-gray-300 cursor-pointer">
+                    <input type="radio" name="texMode" checked={texMode === 'classical_bridges'} onChange={() => setTexMode('classical_bridges')} className="mt-0.5" />
+                    <span><span className="text-amber-300 font-semibold">Classical bridges</span> — классика как мост + re-index RICIS</span>
+                  </label>
+                </div>
+                <button type="button" onClick={handleGenerateTex} className="w-full py-2 text-[10px] font-bold uppercase tracking-wider rounded border border-amber-700/50 bg-amber-950/50 text-amber-200 hover:bg-amber-900/40">
+                  Генерировать TEX
+                </button>
+                {texMsg && <p className="text-[9px] text-amber-300/90 font-mono break-all">{texMsg}</p>}
+              </div>
               <button
                 onClick={() => handleSolve(selectedNode.id)}
                 disabled={selectedNode.state === 'resolved' || !isNodeAvailable(selectedNode, map)}
