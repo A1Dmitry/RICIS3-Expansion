@@ -68,3 +68,10 @@
 
 - Изучить публикации на Zenodo (Millennium 7 + NS, Master Registry 17, LLM gradient, Cosmology push, Bridge/π O(1), Erdős AP, Beal/UV, Cusp y²=x³, Voynich, Lean4 kernel) и одноразово прописать решённые задачи в IndexedDB, если БД пуста.  
   **Статус:** выполнено без замечаний (`src/model/zenodoMigration.ts` + `runZenodoMigrationIfEmpty` в hydrate; `resetMapWithZenodoSeed` на «Сброс карты»; синхронизация с remote v0.3.10).
+
+---
+
+## 2026-08-02 — Итерация 5 (v0.3.12, Lean 4 formal kernel)
+
+- Проверка Lean-компилятором модуля Math.Calculus.RICIS3.Release 10.0.1 (DOI 10.5281/zenodo.18116204): теорема `ricis_zero_div_self_identity`, SP2/SP4, A4–A6, конвейер RICIS, аксиомы Aleynikov V–XIX.  
+  **Статус:** выполнено без замечаний (файл `formal/RICIS3_Release_10_0_1.lean`; статус автора: компилируется, самопроверено; теорема через `unfold`/`simp`).
