@@ -13,6 +13,7 @@ import {
 } from '../model/access';
 import { layoutZones, layoutNodes, zoneVisualRadius, nodeVisualRadius } from '../model/physics';
 import { ZoneBubble, NodeBubble, NodeLabel } from './Bubbles';
+import { ManualNodePanel } from './ManualNodePanel';
 
 const zoneColors: Record<string, string> = {
   math: '#3b82f6',
@@ -62,6 +63,12 @@ export const Map3D: React.FC = () => {
   const [showProof, setShowProof] = useState(false);
   const [pathNodeIds, setPathNodeIds] = useState<string[]>([]);
   const [agentMsg, setAgentMsg] = useState<string | null>(null);
+  const [manualTitle, setManualTitle] = useState('');
+  const [manualTf, setManualTf] = useState('');
+  const [manualDesc, setManualDesc] = useState('');
+  const [manualZone, setManualZone] = useState('math');
+  const [manualMsg, setManualMsg] = useState<string | null>(null);
+  const [showManualHelp, setShowManualHelp] = useState(false);
 
   const selectedNode = map.nodes.find(n => n.id === selectedNodeId) || null;
   const availability = useMemo(() => countAvailable(map), [map.nodes, map.edges]);
@@ -89,6 +96,52 @@ export const Map3D: React.FC = () => {
   const handleFindPathToRicis = () => {
     if (!selectedNodeId) return;
     setPathNodeIds(findPathToRicis(selectedNodeId, map));
+  };
+
+  const handleAddManualNode = () => {
+    const id = map.addManualNode({
+      title: manualTitle,
+      targetFunction: manualTf,
+      description: manualDesc || undefined,
+      zoneId: manualZone,
+      singularityHint: manualTf,
+    });
+    if (!id) {
+      setManualMsg('Укажите название и целевую функцию.');
+      setTimeout(() => setManualMsg(null), 3500);
+      return;
+    }
+    setManualMsg('Узел добавлен: ' + id);
+    setSelectedNodeId(id);
+    setManualTitle('');
+    setManualTf('');
+    setManualDesc('');
+    setTimeout(() => setManualMsg(null), 4000);
+  };
+
+  const applyExample = (kind: '00' | '0inf' | 'infinf') => {
+    if (kind === '00') {
+      setManualTitle('Типовая 0/0: lim (sin x)/x');
+      setManualTf('0/0 ~ lim_{x→0} (sin x)/x');
+      setManualDesc(
+        'Классическая неопределённость 0/0. В RICIS-III: индексированные нули 0_{sin x} / 0_{x} → (sin x)/x по SP3; SP2 даёт структурное сокращение. Числовой предел 1 — следствие, не замена provenance.'
+      );
+      setManualZone('math');
+    } else if (kind === '0inf') {
+      setManualTitle('Типовая 0·∞: x ln x (x→0+)');
+      setManualTf('0*∞ ~ lim_{x→0+} x · ln x');
+      setManualDesc(
+        'Неопределённость 0·∞. A6: 0_F × ∞_G = F·G. Здесь F ~ x, G ~ ln x в индексированной форме; результат — конечная структура без «забвения» множителей.'
+      );
+      setManualZone('math');
+    } else {
+      setManualTitle('Типовая ∞/∞: lim (2x)/(x+1)');
+      setManualTf('∞/∞ ~ lim_{x→∞} (2x)/(x+1)');
+      setManualDesc(
+        'Неопределённость ∞/∞. SP3/A5: ∞_F / ∞_G = F/G после SP2-редукции индексов. Здесь F=2x, G=x+1 → отношение 2 в пределе, с сохранённой идентичностью выражений.'
+      );
+      setManualZone('math');
+    }
   };
 
   const handleAgentDiscovery = () => {
@@ -232,6 +285,23 @@ export const Map3D: React.FC = () => {
               <button type="button" onClick={() => handleSolve(selectedNode.id)} className="mt-2 w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10px] uppercase tracking-wider rounded">Execute RICIS Solution</button>
             )}
           </section>
+
+          <ManualNodePanel
+            manualTitle={manualTitle}
+            setManualTitle={setManualTitle}
+            manualTf={manualTf}
+            setManualTf={setManualTf}
+            manualDesc={manualDesc}
+            setManualDesc={setManualDesc}
+            manualZone={manualZone}
+            setManualZone={setManualZone}
+            zones={map.zones}
+            showManualHelp={showManualHelp}
+            setShowManualHelp={setShowManualHelp}
+            manualMsg={manualMsg}
+            onAdd={handleAddManualNode}
+            onExample={applyExample}
+          />
 
           <section>
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Persistence</h3>
