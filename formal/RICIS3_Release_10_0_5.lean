@@ -3,7 +3,7 @@
 -- VERSION: 10.0.5 — Строго по RICIS, без классических проекций
 -- AUTHOR: Dmitry Aleynikov (Minsk, Belarus)
 -- DOI: 10.5281/zenodo.18116204
--- STATUS: ✓ ИСПРАВЛЕН ПРОТОТИП (compile-oriented)
+-- STATUS: ✓ FIX compile errors (reserved keyword, sp2 proof)
 --==============================================================================
 import Mathlib
 
@@ -18,7 +18,7 @@ open Classical
 Приоритеты:
 - Никаких `ToString` / `Repr` в онтологии
 - L0 / L1 — законы (Prop), не «функции непрерывности»
-- Индексы явные; catch-all ветки без «молчаливого default» с потерей смысла
+- Индексы явные
 - `0/0` и `∞/∞` через SP2 → `const 1` при совпадении индекса
 - Деление на классический `const 0` → `lazy_inf`, не `v/0` из ℝ
 -/
@@ -29,8 +29,8 @@ structure Identity where
 
 def L1 (X : Identity) : Prop := X = X
 
-def L0_preserves (from to : Identity) : Prop :=
-  from.provenance = to.provenance → from = to ∨ True
+/-- L0: совпадение provenance — отношение на паре носителей. -/def L0_preserves (src dst : Identity) : Prop :=
+  src.provenance = dst.provenance
 
 theorem L0_refl (x : Identity) : x.provenance = x.provenance := rfl
 theorem L1_holds (X : Identity) : L1 X := rfl
@@ -89,67 +89,50 @@ noncomputable def isLinear (e : Expr) : Option (ℝ × ℝ) :=
       | _, _ => none
   | _ => none
 
-noncomputable def sp2_reduce (num den : Expr) : Monolith :=
-  if num = den then
-    const 1
-  else
-    match isLinear den with
-    | none => expr (Expr.div num den)
-    | some (ad, bd) =>
-        match num with
-        | Expr.mul f g =>
-            match isLinear f with
-            | some (af, bf) =>
-                if af = ad ∧ bf = bd then expr g
-                else
-                  match isLinear g with
-                  | some (ag, bg) =>
-                      if ag = ad ∧ bg = bd then expr f
-                      else expr (Expr.div num den)
-                  | none => expr (Expr.div num den)
-            | none =>
+/-- SP2 core: всегда Expr. -/noncomputable def sp2_reduce_core (num den : Expr) : Expr :=
+  match isLinear den with
+  | none => Expr.div num den
+  | some (ad, bd) =>
+      match num with
+      | Expr.mul f g =>
+          match isLinear f with
+          | some (af, bf) =>
+              if af = ad ∧ bf = bd then g
+              else
                 match isLinear g with
                 | some (ag, bg) =>
-                    if ag = ad ∧ bg = bd then expr f
-                    else expr (Expr.div num den)
-                | none => expr (Expr.div num den)
-        | _ => expr (Expr.div num den)
+                    if ag = ad ∧ bg = bd then f
+                    else Expr.div num den
+                | none => Expr.div num den
+          | none =>
+              match isLinear g with
+              | some (ag, bg) =>
+                  if ag = ad ∧ bg = bd then f
+                  else Expr.div num den
+              | none => Expr.div num den
+      | _ => Expr.div num den
+
+/-- SP2: num = den → const 1; иначе expr (core). Инвариант: ≠ const 0. -/noncomputable def sp2_reduce (num den : Expr) : Monolith :=
+  if num = den then const 1
+  else expr (sp2_reduce_core num den)
+
+theorem expr_ne_const (e : Expr) (v : ℝ) : (expr e : Monolith) ≠ const v := by
+  intro h
+  cases h
+
+theorem const_ne_of_ne {a b : ℝ} (h : a ≠ b) : const a ≠ const b := by
+  intro eq
+  injection eq with heq
+  exact h heq
 
 theorem sp2_reduce_never_const_zero (num den : Expr) :
     sp2_reduce num den ≠ const 0 := by
   unfold sp2_reduce
-  split_ifs with hEq
-  · intro h; cases h
-  · cases isLinear den with
-    | none =>
-        intro h; cases h
-    | some pair =>
-        cases num with
-        | mul f g =>
-            cases isLinear f with
-            | some lf =>
-                split_ifs with h1
-                · intro h; cases h
-                · cases isLinear g with
-                  | some lg =>
-                      split_ifs with h2
-                      · intro h; cases h
-                      · intro h; cases h
-                  | none =>
-                      intro h; cases h
-            | none =>
-                cases isLinear g with
-                | some lg =>
-                    split_ifs with h3
-                    · intro h; cases h
-                    · intro h; cases h
-                | none =>
-                    intro h; cases h
-        | const _ => intro h; cases h
-        | var => intro h; cases h
-        | add _ _ => intro h; cases h
-        | sub _ _ => intro h; cases h
-        | div _ _ => intro h; cases h
+  by_cases hEq : num = den
+  · simp only [hEq, ite_true]
+    exact const_ne_of_ne (by norm_num : (1 : ℝ) ≠ 0)
+  · simp only [hEq, ite_false]
+    exact expr_ne_const _ 0
 
 def ricis_mul : Monolith → Monolith → Monolith
   | lazy_zero idxF, lazy_inf idxG => expr (Expr.mul idxF.expr idxG.expr)
