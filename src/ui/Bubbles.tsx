@@ -37,6 +37,7 @@ export function ZoneBubble({
       ref={meshRef}
       position={position}
       scale={radius}
+      // Зоны не должны перехватывать клики по узлам
       raycast={() => null}
     >
       <sphereGeometry args={[1, 64, 64]} />
@@ -82,58 +83,50 @@ export function ZoneBubble({
   );
 }
 
-/** Подпись рядом с узлом (billboard). Ширина ≈ 2× диаметра пузырька. */
+/** Подпись рядом с узлом (billboard sprite, без дополнительных зависимостей). */
 export function NodeLabel({
   position,
   text,
   subtitle,
   offsetY = 0.55,
-  nodeRadius = 1.6,
 }: {
   position: [number, number, number];
   text: string;
   subtitle?: string;
   offsetY?: number;
-  nodeRadius?: number;
 }) {
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas');
-    const w = 1024;
-    const h = subtitle ? 200 : 160;
+    const w = 512;
+    const h = subtitle ? 128 : 96;
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new THREE.CanvasTexture(canvas);
     ctx.clearRect(0, 0, w, h);
-
-    ctx.font = 'bold 52px Inter, system-ui, sans-serif';
+    
+    ctx.font = 'bold 26px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-
-    const label = text.length > 48 ? text.slice(0, 46) + '…' : text;
-    const sub = subtitle
-      ? subtitle.length > 56
-        ? subtitle.slice(0, 54) + '…'
-        : subtitle
-      : '';
-
+    
+    const label = text.length > 42 ? text.slice(0, 40) + '…' : text;
+    const sub = subtitle ? (subtitle.length > 50 ? subtitle.slice(0, 48) + '…' : subtitle) : '';
+    
     const metrics1 = ctx.measureText(label);
-    ctx.font = 'normal 32px Inter, system-ui, sans-serif';
+    
+    ctx.font = 'normal 18px Inter, system-ui, sans-serif';
     const metrics2 = sub ? ctx.measureText(sub) : { width: 0 };
-
-    const padX = 36;
-    const boxW = Math.min(
-      w - 16,
-      Math.max(metrics1.width, metrics2.width as number, w * 0.35) + padX * 2
-    );
-    const boxH = subtitle ? 120 : 88;
+    
+    const padX = 24;
+    const boxW = Math.min(w - 8, Math.max(metrics1.width, metrics2.width) + padX * 2);
+    const boxH = subtitle ? 72 : 44;
     const bx = (w - boxW) / 2;
     const by = (h - boxH) / 2;
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
-    ctx.strokeStyle = 'rgba(34, 211, 238, 0.55)';
-    ctx.lineWidth = 3;
-    const r = 14;
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.45)';
+    ctx.lineWidth = 2;
+    const r = 8;
     ctx.beginPath();
     ctx.moveTo(bx + r, by);
     ctx.arcTo(bx + boxW, by, bx + boxW, by + boxH, r);
@@ -143,36 +136,27 @@ export function NodeLabel({
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-
+    
     if (subtitle) {
-      ctx.font = 'bold 48px Inter, system-ui, sans-serif';
+      ctx.font = 'bold 24px Inter, system-ui, sans-serif';
       ctx.fillStyle = '#e0f2fe';
-      ctx.fillText(label, w / 2, by + boxH / 2 - 22);
-      ctx.font = 'normal 30px Inter, system-ui, sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText(sub, w / 2, by + boxH / 2 + 26);
+      ctx.fillText(label, w / 2, by + boxH / 2 - 12);
+      ctx.font = 'normal 18px Inter, system-ui, sans-serif';
+      ctx.fillStyle = '#94a3b8'; // text-slate-400
+      ctx.fillText(sub, w / 2, by + boxH / 2 + 14);
     } else {
-      ctx.font = 'bold 52px Inter, system-ui, sans-serif';
+      ctx.font = 'bold 24px Inter, system-ui, sans-serif';
       ctx.fillStyle = '#e0f2fe';
-      ctx.fillText(label, w / 2, h / 2 + 2);
+      ctx.fillText(label, w / 2, h / 2 + 1);
     }
-
+    
     const tex = new THREE.CanvasTexture(canvas);
     tex.needsUpdate = true;
-    tex.anisotropy = 4;
     return tex;
   }, [text, subtitle]);
 
-  // Диаметр пузырька = 2 * nodeRadius; ширина подписи ≈ 2 × диаметра = 4 × radius
-  const scaleX = Math.max(5.2, nodeRadius * 4.0);
-  const aspect = subtitle ? 200 / 1024 : 160 / 1024;
-  const scaleY = scaleX * aspect * 1.15;
-
   return (
-    <sprite
-      position={[position[0], position[1] + offsetY, position[2]]}
-      scale={[scaleX, scaleY, 1]}
-    >
+    <sprite position={[position[0], position[1] + offsetY, position[2]]} scale={[3.2, subtitle ? 0.8 : 0.6, 1]}>
       <spriteMaterial map={texture} transparent depthTest={false} depthWrite={false} />
     </sprite>
   );

@@ -1,12 +1,6 @@
 import { MapState, Proof, ProblemNode, DependencyEdge, Axiom, ScienceZone } from './types';
 import { initialMap } from './initialMap';
 import { dbSaveMap, dbLoadMap, dbClear } from './db';
-import {
-  runZenodoMigrationIfEmpty,
-  forceZenodoReseed,
-  buildZenodoSeedState,
-  ZENODO_MIGRATION_VERSION,
-} from './zenodoMigration';
 
 /** @deprecated Legacy localStorage snapshot (миграция). */
 const LEGACY_KEY = 'ricis3-map-v1';
@@ -56,6 +50,7 @@ function loadLegacyLocalStorage(): MapState | null {
   }
 }
 
+/** Загрузка: IndexedDB → миграция из localStorage → seed initialMap. */
 export async function hydrateInitialState(): Promise<MapState> {
   const fromDb = await dbLoadMap();
   if (fromDb && fromDb.nodes.length > 0) return fromDb;
@@ -71,17 +66,17 @@ export async function hydrateInitialState(): Promise<MapState> {
     return legacy;
   }
 
-  try {
-    const migrated = await runZenodoMigrationIfEmpty();
-    if (migrated) {
-      const after = await dbLoadMap();
-      if (after && after.nodes.length > 0) return after;
-    }
-  } catch (e) {
-    console.warn('Zenodo migration failed, falling back to in-memory seed', e);
-  }
-
-  return buildZenodoSeedState();
+  return {
+    nodes: initialMap.nodes.map(n => ({ ...n, economic: { ...n.economic } })),
+    edges: initialMap.edges.map(e => ({ ...e })),
+    zones: initialMap.zones.map(z => ({
+      ...z,
+      nodeIds: [...z.nodeIds],
+      economicProfile: { ...z.economicProfile },
+    })),
+    axioms: [...initialMap.axioms],
+    proofs: { ...initialMap.proofs },
+  };
 }
 
 export async function saveMapToDb(state: MapState): Promise<boolean> {
@@ -96,14 +91,6 @@ export async function saveMapToDb(state: MapState): Promise<boolean> {
 
 export async function clearMapDb(): Promise<void> {
   await dbClear();
-}
-
-export async function resetMapWithZenodoSeed(): Promise<MapState> {
-  await dbClear();
-  await forceZenodoReseed();
-  const state = await dbLoadMap();
-  if (state && state.nodes.length > 0) return state;
-  return buildZenodoSeedState();
 }
 
 export function exportMapJson(state: MapState): string {
@@ -121,5 +108,3 @@ export async function importMapJson(text: string): Promise<MapState | null> {
     return null;
   }
 }
-
-export { ZENODO_MIGRATION_VERSION, buildZenodoSeedState };

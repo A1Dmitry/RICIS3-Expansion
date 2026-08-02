@@ -3,83 +3,43 @@ import { MapState, Axiom, ProblemNode, DependencyEdge, Proof, ProofStep } from '
 /** Каталог реальных проблем для фрактального расширения (без фейковых имён). */
 const KNOWN_SINGULARITY_PROBLEMS: ProblemNode[] = [];
 
-export function classifySingularity(
-  tf: string
-): 'zero_over_zero' | 'zero_times_inf' | 'inf_over_inf' | 'generic' {
-  const s = tf.replace(/\s+/g, '').toLowerCase();
-  if (/∞\/∞|inf\/inf|oo\/oo|∞_f\/∞_g/.test(s)) return 'inf_over_inf';
-  if (/0\*∞|0\*inf|0_f\*∞|0×∞|0x∞|zero\*inf/.test(s)) return 'zero_times_inf';
-  if (/0\/0|0_f\/0_g|zero\/zero/.test(s)) return 'zero_over_zero';
-  if (s.includes('*') && (s.includes('∞') || s.includes('inf'))) return 'zero_times_inf';
-  if (s.includes('/') && (s.includes('∞') || s.includes('inf'))) return 'inf_over_inf';
-  if (s.includes('/') && s.includes('0')) return 'zero_over_zero';
-  return 'generic';
-}
-
-function offlineProofLatex(node: ProblemNode): string {
-  const tf = node.targetFunction;
-  const kind = classifySingularity(tf);
-  let transform = '0_F / 0_G = F/G \\quad (\\mathrm{SP3})';
-  if (kind === 'zero_times_inf') transform = '0_F \\times \\infty_G = F \\cdot G \\quad (\\mathrm{A6})';
-  if (kind === 'inf_over_inf') transform = '\\infty_F / \\infty_G = F/G \\quad (\\mathrm{SP3/A5})';
-  return [
-    '\\section*{RICIS-III Proof: ' + node.title + '}',
-    '\\textbf{Target Function:} $' + tf + '$',
-    '\\textbf{Singularity class:} ' + kind,
-    '$$ ' + transform + ' $$',
-    '\\textbf{Final Result:} Axiom Extracted: ' + node.id + '_resolved [' + kind + ']',
-  ].join('\n\n');
-}
-
 export async function generateProof(node: ProblemNode, allAxioms: Axiom[]): Promise<Proof> {
-  const tf = node.targetFunction;
-  const kind = classifySingularity(tf);
   const steps: ProofStep[] = [
-    { phase: -1, name: 'L1_IDENTITY', action: 'Verify identity and types', expression: 'T(' + tf + ') = T(' + tf + ')' },
-    { phase: 0.5, name: 'SEMANTIC INDEXING (SP4)', action: 'Index singularities by parent expression', expression: '0_{E}, \\infty_{E} for E = ' + tf },
-    { phase: 1, name: 'SAFETY CHECK (SP2)', action: 'Algebraic reduction before singularity evaluation', expression: 'Reduced(' + tf + ')' },
-    {
-      phase: 2,
-      name: 'RICIS transforms',
-      action: 'Apply indexed singularity laws (' + kind + ')',
-      expression:
-        kind === 'zero_times_inf'
-          ? '0_F × ∞_G = F·G (A6)'
-          : kind === 'inf_over_inf'
-            ? '∞_F / ∞_G = F/G (SP3/A5)'
-            : '0_F / 0_G = F/G (SP2+SP3)',
-    },
-    { phase: 6, name: 'L1 verification', action: 'Final consistency check', expression: 'Result ≡ Result' },
+    { phase: -1, name: 'L1_IDENTITY', action: 'Verify identity and types', expression: 'T(' + node.targetFunction + ')' },
+    { phase: 0.5, name: 'SEMANTIC INDEXING (SP4)', action: 'Index singularities by parent expression', expression: '0_{' + node.targetFunction + '}' },
+    { phase: 1, name: 'SAFETY CHECK (SP2)', action: 'Algebraic reduction before singularity evaluation', expression: 'Reduced(' + node.targetFunction + ')' },
+    { phase: 2, name: 'RICIS transforms', action: 'Apply A6 (General) and available network axioms', expression: '0_F x infinity_G = F * G' },
+    { phase: 6, name: 'L1 verification', action: 'Final consistency check', expression: 'Result equiv Result' }
   ];
 
-  let latex = '';
+  let latex = "";
   try {
     const res = await fetch('/api/generateProof', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify({ 
         title: node.title,
         targetFunction: node.targetFunction,
-        axioms: allAxioms,
-      }),
+        axioms: allAxioms
+      })
     });
     const data = await res.json();
     if (data.proofLatex) {
       latex = data.proofLatex;
     } else {
-      latex = offlineProofLatex(node);
+      latex = "Error generating proof: " + (data.error || "Unknown error");
     }
-  } catch {
-    latex = offlineProofLatex(node);
+  } catch (e: any) {
+    latex = "Network error while generating proof: " + e.message;
   }
 
-  const finalResult = 'Axiom Extracted: ' + node.id + '_resolved [' + kind + ']';
+  const finalResult = 'Axiom Extracted: ' + node.id + '_resolved';
   return {
     nodeId: node.id,
     targetFunction: node.targetFunction,
     steps,
     finalResult,
-    latex,
+    latex
   };
 }
 
@@ -133,6 +93,8 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
     });
   }
 
+  // Без фейковых имён: не создаём «Уточнение / Связанная задача».
+  // Если каталог пуст — не подмешиваем синтетические узлы агента с шаблонными названиями.
   if (newNodes.length === 0) {
     return map;
   }
@@ -175,7 +137,7 @@ export async function solveNodeLogic(map: MapState, nodeId: string): Promise<Map
           ...n.economic,
           costUnresolved: n.economic.costUnresolved * 0.8,
           riskLoss: n.economic.riskLoss * 0.8,
-        },
+        }
       };
     }
     return n;
@@ -185,9 +147,10 @@ export async function solveNodeLogic(map: MapState, nodeId: string): Promise<Map
     id: 'ax-' + node.id + '-' + Date.now(),
     sourceNodeId: node.id,
     formalStatement: 'Axiom(' + node.targetFunction + ')',
-    usedByNodeIds: [],
+    usedByNodeIds: []
   };
 
+  // Ребро зелёное только если оба конца resolved (открыты и решены).
   const nodeState = (id: string) =>
     id === nodeId
       ? 'resolved'
@@ -196,6 +159,7 @@ export async function solveNodeLogic(map: MapState, nodeId: string): Promise<Map
     const bothResolved =
       nodeState(e.fromId) === 'resolved' && nodeState(e.toId) === 'resolved';
     if (bothResolved) return { ...e, stateColor: 'green' as const };
+    // Если один из концов только что решён, а второй нет — жёлтый (частично)
     if (e.fromId === nodeId || e.toId === nodeId) {
       return { ...e, stateColor: 'yellow' as const };
     }
@@ -209,7 +173,7 @@ export async function solveNodeLogic(map: MapState, nodeId: string): Promise<Map
     nodes: updatedNodes,
     edges: updatedEdges,
     axioms: [...map.axioms, axiom],
-    proofs: { ...map.proofs, [nodeId]: proof },
+    proofs: { ...map.proofs, [nodeId]: proof }
   };
 
   return expandFractal(newMap, node.id);

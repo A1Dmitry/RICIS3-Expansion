@@ -1,4 +1,6 @@
-import { MapState, ProblemNode, DependencyEdge } from './types';
+const fs = require('fs');
+
+let code = `import { MapState, ProblemNode, DependencyEdge } from './types';
 
 const KNOWN_SINGULARITY_PROBLEMS: Array<{ id: string }> = [];
 
@@ -44,14 +46,14 @@ export async function discoverNewProblems(
 
   for (let i = 0; i < Math.min(maxNew, fetchedTasks.length); i++) {
     const task = fetchedTasks[i];
-    const id = `agent-${anchorNodeId}-${stamp}-${i}`;
+    const id = \`agent-\${anchorNodeId}-\${stamp}-\${i}\`;
     const node: ProblemNode = {
       id,
-      title: task.title || `${anchor.title}: Обобщение`,
-      description: task.description || `Задача логически следует из «${anchor.title}».`,
+      title: task.title || \`\${anchor.title}: Обобщение\`,
+      description: task.description || \`Задача логически следует из «\${anchor.title}».\`,
       state: 'unresolved',
       type: task.type || 'scientific_task',
-      targetFunction: task.targetFunction || `f(${anchor.targetFunction})`,
+      targetFunction: task.targetFunction || \`f(\${anchor.targetFunction})\`,
       zoneIds: task.zoneId ? [task.zoneId] : [...anchor.zoneIds],
       dependencyIds: [anchorNodeId],
       dependentIds: [],
@@ -68,7 +70,7 @@ export async function discoverNewProblems(
     };
     nodes.push(node);
     edges.push({
-      id: `edge-${anchorNodeId}-${id}`,
+      id: \`edge-\${anchorNodeId}-\${id}\`,
       fromId: anchorNodeId,
       toId: id,
       strength: 0.65,
@@ -97,3 +99,7 @@ export async function applyAgentDiscoveries(map: MapState, anchorNodeId: string,
     edges: [...map.edges, ...edges],
   };
 }
+`;
+
+fs.writeFileSync('src/model/agent.ts', code);
+console.log('PATCHED agent.ts');

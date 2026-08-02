@@ -10,7 +10,6 @@ import {
   clearMapDb,
   exportMapJson,
   importMapJson,
-  resetMapWithZenodoSeed,
 } from '../model/persistence';
 
 interface MapStore extends MapState {
@@ -22,17 +21,9 @@ interface MapStore extends MapState {
   resetMap: () => Promise<void>;
   downloadJson: () => void;
   loadFromJson: (text: string) => Promise<boolean>;
-  runAgentDiscovery: (anchorNodeId?: string) => number;
+  runAgentDiscovery: (anchorNodeId?: string) => Promise<number>;
   catalogRemaining: () => number;
   isCatalogExhausted: () => boolean;
-  /** Ручное добавление узла по целевой функции (targetFunction). */
-  addManualNode: (input: {
-    title: string;
-    targetFunction: string;
-    description?: string;
-    zoneId?: string;
-    singularityHint?: string;
-  }) => string | null;
 }
 
 function emptyState(): MapState {
@@ -80,8 +71,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   resetMap: async () => {
-    const state = await resetMapWithZenodoSeed();
-    set({ ...state, hydrated: true });
+    await clearMapDb();
+    set({ ...emptyState(), hydrated: true });
   },
 
   downloadJson: () => {
@@ -106,7 +97,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   isCatalogExhausted: () => catalogExhausted(get()),
 
-  runAgentDiscovery: (anchorNodeId?: string) => {
+  runAgentDiscovery: async (anchorNodeId?: string) => {
     const state = get();
     const anchor =
       anchorNodeId ||
@@ -115,80 +106,12 @@ export const useMapStore = create<MapStore>((set, get) => ({
       state.nodes[0]?.id;
     if (!anchor) return 0;
     const before = state.nodes.length;
-    const next = applyAgentDiscoveries(state, anchor, 2);
+    const next = await applyAgentDiscoveries(state, anchor, 2);
     const added = next.nodes.length - before;
     if (added > 0) {
       set(next);
       void saveMapToDb(next);
     }
     return added;
-  },
-
-  addManualNode: (input) => {
-    const title = (input.title || '').trim();
-    const targetFunction = (input.targetFunction || '').trim();
-    if (!title || !targetFunction) return null;
-
-    const state = get();
-    const baseId =
-      'manual-' +
-      targetFunction
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-        .slice(0, 40);
-    let id = baseId || 'manual-node';
-    let n = 1;
-    while (state.nodes.some(nd => nd.id === id)) {
-      id = baseId + '-' + n;
-      n += 1;
-    }
-
-    const zoneId =
-      input.zoneId && state.zones.some(z => z.id === input.zoneId)
-        ? input.zoneId
-        : state.zones.find(z => z.id === 'math')?.id || state.zones[0]?.id || 'math';
-
-    const description =
-      (input.description || '').trim() ||
-      'Пользовательская сингулярность. Целевая функция: ' +
-        targetFunction +
-        '. Решение через RICIS-III: SP2 → SP4 → A4/A5/A6 (0_F/0_G = F/G, 0_F×∞_G = F·G).';
-
-    const node = {
-      id,
-      title,
-      description,
-      state: 'unresolved' as const,
-      type: 'scientific_task' as const,
-      targetFunction,
-      zoneIds: [zoneId],
-      dependencyIds: [] as string[],
-      dependentIds: [] as string[],
-      fractalDepth: 1,
-      economic: {
-        costUnresolved: 1_000_000,
-        costToSolve: 50_000,
-        marketGain: 2_000_000,
-        riskLoss: 500_000,
-      },
-      rewardClass: 'reputation' as const,
-      singularityHint: input.singularityHint || targetFunction,
-      ricisSolvable: true,
-    };
-
-    const zones = state.zones.map(z =>
-      z.id === zoneId ? { ...z, nodeIds: [...z.nodeIds, id] } : z
-    );
-    const next = {
-      nodes: [...state.nodes, node],
-      edges: state.edges,
-      zones,
-      axioms: state.axioms,
-      proofs: state.proofs,
-    };
-    set(next);
-    void saveMapToDb(next);
-    return id;
   },
 }));

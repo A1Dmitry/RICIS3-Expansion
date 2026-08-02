@@ -13,7 +13,6 @@ import {
 } from '../model/access';
 import { layoutZones, layoutNodes, zoneVisualRadius, nodeVisualRadius } from '../model/physics';
 import { ZoneBubble, NodeBubble, NodeLabel } from './Bubbles';
-import { ManualNodePanel } from './ManualNodePanel';
 
 const zoneColors: Record<string, string> = {
   math: '#3b82f6',
@@ -63,12 +62,6 @@ export const Map3D: React.FC = () => {
   const [showProof, setShowProof] = useState(false);
   const [pathNodeIds, setPathNodeIds] = useState<string[]>([]);
   const [agentMsg, setAgentMsg] = useState<string | null>(null);
-  const [manualTitle, setManualTitle] = useState('');
-  const [manualTf, setManualTf] = useState('');
-  const [manualDesc, setManualDesc] = useState('');
-  const [manualZone, setManualZone] = useState('math');
-  const [manualMsg, setManualMsg] = useState<string | null>(null);
-  const [showManualHelp, setShowManualHelp] = useState(false);
 
   const selectedNode = map.nodes.find(n => n.id === selectedNodeId) || null;
   const availability = useMemo(() => countAvailable(map), [map.nodes, map.edges]);
@@ -98,54 +91,8 @@ export const Map3D: React.FC = () => {
     setPathNodeIds(findPathToRicis(selectedNodeId, map));
   };
 
-  const handleAddManualNode = () => {
-    const id = map.addManualNode({
-      title: manualTitle,
-      targetFunction: manualTf,
-      description: manualDesc || undefined,
-      zoneId: manualZone,
-      singularityHint: manualTf,
-    });
-    if (!id) {
-      setManualMsg('Укажите название и целевую функцию.');
-      setTimeout(() => setManualMsg(null), 3500);
-      return;
-    }
-    setManualMsg('Узел добавлен: ' + id);
-    setSelectedNodeId(id);
-    setManualTitle('');
-    setManualTf('');
-    setManualDesc('');
-    setTimeout(() => setManualMsg(null), 4000);
-  };
-
-  const applyExample = (kind: '00' | '0inf' | 'infinf') => {
-    if (kind === '00') {
-      setManualTitle('Типовая 0/0: lim (sin x)/x');
-      setManualTf('0/0 ~ lim_{x→0} (sin x)/x');
-      setManualDesc(
-        'Классическая неопределённость 0/0. В RICIS-III: индексированные нули 0_{sin x} / 0_{x} → (sin x)/x по SP3; SP2 даёт структурное сокращение. Числовой предел 1 — следствие, не замена provenance.'
-      );
-      setManualZone('math');
-    } else if (kind === '0inf') {
-      setManualTitle('Типовая 0·∞: x ln x (x→0+)');
-      setManualTf('0*∞ ~ lim_{x→0+} x · ln x');
-      setManualDesc(
-        'Неопределённость 0·∞. A6: 0_F × ∞_G = F·G. Здесь F ~ x, G ~ ln x в индексированной форме; результат — конечная структура без «забвения» множителей.'
-      );
-      setManualZone('math');
-    } else {
-      setManualTitle('Типовая ∞/∞: lim (2x)/(x+1)');
-      setManualTf('∞/∞ ~ lim_{x→∞} (2x)/(x+1)');
-      setManualDesc(
-        'Неопределённость ∞/∞. SP3/A5: ∞_F / ∞_G = F/G после SP2-редукции индексов. Здесь F=2x, G=x+1 → отношение 2 в пределе, с сохранённой идентичностью выражений.'
-      );
-      setManualZone('math');
-    }
-  };
-
-  const handleAgentDiscovery = () => {
-    const added = map.runAgentDiscovery(selectedNodeId || undefined);
+  const handleAgentDiscovery = async () => {
+    const added = await map.runAgentDiscovery(selectedNodeId || undefined);
     setAgentMsg(
       added > 0
         ? 'Агент добавил ' + added + ' новых проблем в граф.'
@@ -161,7 +108,10 @@ export const Map3D: React.FC = () => {
   }, [selectedNode, map.nodes]);
 
   const availableNodes = useMemo(
-    () => map.nodes.filter(n => n.state !== 'resolved' && isNodeAvailable(n, map)),
+    () =>
+      map.nodes.filter(
+        n => n.state !== 'resolved' && isNodeAvailable(n, map)
+      ),
     [map.nodes, map.edges]
   );
 
@@ -189,7 +139,8 @@ export const Map3D: React.FC = () => {
             const dy = mPos[1] - zPos[1];
             const dz = mPos[2] - zPos[2];
             const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            maxDist = Math.max(maxDist, dist + 15);
+            // node visual radius approximately up to 5-10
+            maxDist = Math.max(maxDist, dist + 15); 
           }
         });
         r[z.id] = Math.max(zoneVisualRadius(z, map.nodes), maxDist);
@@ -202,7 +153,9 @@ export const Map3D: React.FC = () => {
 
   const nodeStateById = useMemo(() => {
     const m: Record<string, string> = {};
-    map.nodes.forEach(n => { m[n.id] = n.state; });
+    map.nodes.forEach(n => {
+      m[n.id] = n.state;
+    });
     return m;
   }, [map.nodes]);
 
@@ -216,11 +169,19 @@ export const Map3D: React.FC = () => {
         pathEdgeKeys.has(edge.toId + '|' + edge.fromId);
       const fromResolved = nodeStateById[edge.fromId] === 'resolved';
       const toResolved = nodeStateById[edge.toId] === 'resolved';
+      // Зелёный только если оба узла отношения открыты и решены
       let color = '#ef4444';
       let opacity = 0.3;
-      if (onPath) { color = '#22d3ee'; opacity = 1; }
-      else if (fromResolved && toResolved) { color = '#22c55e'; opacity = 0.95; }
-      else if (fromResolved || toResolved) { color = '#eab308'; opacity = 0.55; }
+      if (onPath) {
+        color = '#22d3ee';
+        opacity = 1;
+      } else if (fromResolved && toResolved) {
+        color = '#22c55e';
+        opacity = 0.95;
+      } else if (fromResolved || toResolved) {
+        color = '#eab308';
+        opacity = 0.55;
+      }
       const points = [new THREE.Vector3(...fromPos), new THREE.Vector3(...toPos)];
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       return (
@@ -228,7 +189,11 @@ export const Map3D: React.FC = () => {
           key={edge.id}
           object={new THREE.Line(
             geometry,
-            new THREE.LineBasicMaterial({ color, opacity, transparent: true })
+            new THREE.LineBasicMaterial({
+              color,
+              opacity,
+              transparent: true,
+            })
           )}
         />
       );
@@ -248,10 +213,22 @@ export const Map3D: React.FC = () => {
           </span>
         </div>
         <div className="flex gap-6 text-[10px] font-mono">
-          <div className="flex flex-col"><span className="text-gray-500">NODES</span><span className="text-cyan-200">{map.nodes.length}</span></div>
-          <div className="flex flex-col"><span className="text-gray-500">AVAILABLE</span><span className="text-emerald-400">{availability.available}</span></div>
-          <div className="flex flex-col"><span className="text-gray-500">LOCKED</span><span className="text-gray-400">{availability.locked}</span></div>
-          <div className="flex flex-col"><span className="text-gray-500">RESOLVED</span><span className="text-green-400">{availability.resolved}</span></div>
+          <div className="flex flex-col">
+            <span className="text-gray-500">NODES</span>
+            <span className="text-cyan-200">{map.nodes.length}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-gray-500">AVAILABLE</span>
+            <span className="text-emerald-400">{availability.available}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-gray-500">LOCKED</span>
+            <span className="text-gray-400">{availability.locked}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-gray-500">RESOLVED</span>
+            <span className="text-green-400">{availability.resolved}</span>
+          </div>
         </div>
       </header>
 
@@ -261,47 +238,57 @@ export const Map3D: React.FC = () => {
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Science Zones</h3>
             <div className="space-y-2">
               {map.zones.map(zone => (
-                <div key={zone.id} className="flex items-center justify-between p-2 bg-neutral-900/40 border border-neutral-800/50 rounded">
+                <div
+                  key={zone.id}
+                  className="flex items-center justify-between p-2 bg-neutral-900/40 border border-neutral-800/50 rounded"
+                >
                   <span className="text-xs text-gray-300">{zone.name}</span>
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: zoneColors[zone.id] || '#fff' }} />
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: zoneColors[zone.id] || '#fff' }}
+                  />
                 </div>
               ))}
             </div>
           </section>
 
           <section>
-            <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Доступно к решению ({availableNodes.length})</h3>
+            <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">
+              Доступно к решению ({availableNodes.length})
+            </h3>
             <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {availableNodes.length === 0 && (<p className="text-[10px] text-gray-600">Нет открытых узлов.</p>)}
+              {availableNodes.length === 0 && (
+                <p className="text-[10px] text-gray-600">Нет открытых узлов.</p>
+              )}
               {availableNodes.map(n => (
-                <button key={n.id} type="button" onClick={() => setSelectedNodeId(n.id)}
-                  className={'w-full text-left px-2 py-1.5 text-[11px] rounded border transition-colors ' + (selectedNodeId === n.id ? 'border-cyan-500/60 bg-cyan-950/50 text-cyan-200' : 'border-neutral-800 bg-neutral-900/40 text-gray-300 hover:border-cyan-800/50 hover:text-cyan-300')}>
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => setSelectedNodeId(n.id)}
+                  className={
+                    'w-full text-left px-2 py-1.5 text-[11px] rounded border transition-colors ' +
+                    (selectedNodeId === n.id
+                      ? 'border-cyan-500/60 bg-cyan-950/50 text-cyan-200'
+                      : 'border-neutral-800 bg-neutral-900/40 text-gray-300 hover:border-cyan-800/50 hover:text-cyan-300')
+                  }
+                >
                   <span className="block truncate font-medium">{n.title}</span>
                   <span className="block text-[9px] text-gray-500 font-mono truncate">{n.id}</span>
                 </button>
               ))}
             </div>
-            {selectedNode && selectedNode.state !== 'resolved' && isNodeAvailable(selectedNode, map) && (
-              <button type="button" onClick={() => handleSolve(selectedNode.id)} className="mt-2 w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10px] uppercase tracking-wider rounded">Execute RICIS Solution</button>
-            )}
+            {selectedNode &&
+              selectedNode.state !== 'resolved' &&
+              isNodeAvailable(selectedNode, map) && (
+                <button
+                  type="button"
+                  onClick={() => handleSolve(selectedNode.id)}
+                  className="mt-2 w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10px] uppercase tracking-wider rounded"
+                >
+                  Execute RICIS Solution
+                </button>
+              )}
           </section>
-
-          <ManualNodePanel
-            manualTitle={manualTitle}
-            setManualTitle={setManualTitle}
-            manualTf={manualTf}
-            setManualTf={setManualTf}
-            manualDesc={manualDesc}
-            setManualDesc={setManualDesc}
-            manualZone={manualZone}
-            setManualZone={setManualZone}
-            zones={map.zones}
-            showManualHelp={showManualHelp}
-            setShowManualHelp={setShowManualHelp}
-            manualMsg={manualMsg}
-            onAdd={handleAddManualNode}
-            onExample={applyExample}
-          />
 
           <section>
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Persistence</h3>
@@ -319,7 +306,9 @@ export const Map3D: React.FC = () => {
             {agentMsg && <p className="text-[10px] text-violet-300 mt-1">{agentMsg}</p>}
           </section>
 
-          <p className="text-[9px] text-gray-600 mt-auto leading-snug">Зоны растут с числом узлов. Размер узла — значимость. Подписи — реальные названия.</p>
+          <p className="text-[9px] text-gray-600 mt-auto leading-snug">
+            Зоны растут с числом узлов. Размер узла — значимость. Подписи — реальные названия.
+          </p>
         </aside>
 
         <div className="flex-1 relative bg-[radial-gradient(circle_at_center,_#0a0f1a_0%,_#050505_100%)]">
@@ -356,6 +345,7 @@ export const Map3D: React.FC = () => {
               else if (node.state === 'partial') color = '#eab308';
               if (onPath) color = locked ? '#94a3b8' : '#22d3ee';
 
+              // Размер ≈ ×3 прежнего, пропорционален значимости для последующих открытий
               const baseR = nodeVisualRadius(node, map.nodes);
               const radius = isSelected ? baseR * 1.28 : onPath ? baseR * 1.12 : baseR;
               const emissive = isSelected ? '#22d3ee' : onPath ? '#0891b2' : isCore ? '#155e75' : color;
@@ -380,8 +370,7 @@ export const Map3D: React.FC = () => {
                     position={pos}
                     text={node.title}
                     subtitle={map.zones.find(z => z.id === node.zoneIds[0])?.name || node.zoneIds[0]}
-                    nodeRadius={radius}
-                    offsetY={radius + Math.max(0.55, radius * 0.45)}
+                    offsetY={radius + 0.35}
                   />
                 </group>
               );
