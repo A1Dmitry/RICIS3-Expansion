@@ -99,19 +99,12 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   runAgentDiscovery: async (anchorNodeId?: string) => {
     const state = get();
-    const anchor =
-      anchorNodeId ||
-      state.nodes.find(n => n.id === 'core-agi-target')?.id ||
-      state.nodes.find(n => n.state === 'resolved')?.id ||
-      state.nodes[0]?.id;
-    if (!anchor) return 0;
-    const before = state.nodes.length;
-    const next = await applyAgentDiscoveries(state, anchor, 2);
-    const added = next.nodes.length - before;
-    if (added > 0) {
-      set(next);
-      void saveMapToDb(next);
+    // Обход графа: якорь (если выбран) + все узлы без листьев; дедуп внутри agent
+    const report = await applyAgentDiscoveries(state, anchorNodeId, 2, 6);
+    if (report.added > 0) {
+      set(report.map);
+      void saveMapToDb(report.map);
     }
-    return added;
+    return report.added;
   },
 }));
