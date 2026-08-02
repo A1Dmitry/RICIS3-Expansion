@@ -1,8 +1,8 @@
 {
   "name": "ricis3-expansion",
   "private": false,
-  "version": "0.3.17",
-  "description": "RICIS-III Singularity Map — interactive 3D singularity map with RICIS-III formal core",
+  "version": "0.3.18",
+  "description": "RICIS-III Singularity Map",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -14,11 +14,6 @@
   },
   "author": "Dmitry Aleynikov (A1Dmitry)",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/A1Dmitry/RICIS3-Expansion.git"
-  },
-  "homepage": "https://github.com/A1Dmitry/RICIS3-Expansion#readme",
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@react-three/fiber": "^9.7.0",
@@ -40,7 +35,6 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/three": "^0.180.0",
-    "autoprefixer": "^10.4.21",
     "esbuild": "^0.28.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
