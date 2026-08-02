@@ -10,6 +10,7 @@ import {
   clearMapDb,
   exportMapJson,
   importMapJson,
+  resetMapWithZenodoSeed,
 } from '../model/persistence';
 
 interface MapStore extends MapState {
@@ -71,8 +72,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   resetMap: async () => {
-    await clearMapDb();
-    set({ ...emptyState(), hydrated: true });
+    const state = await resetMapWithZenodoSeed();
+    set({ ...state, hydrated: true });
   },
 
   downloadJson: () => {
