@@ -77,9 +77,11 @@ export function repairAgentLatex(raw: string): string {
   t = t.replace(/\\end\s*\{\s*document\s*\}/gi, '');
   t = t.replace(/\\maketitle/gi, '');
   t = t.replace(/\\tableofcontents/gi, '');
-  t = t.replace(/\\section\*?\{[^}]*\}/g, '');
-  t = t.replace(/\\subsection\*?\{[^}]*\}/g, '');
-
+    
+    t = t.replace(/\\section\*?(?:\[[^\]]*\])?\s*\{/g, '\\textbf{');
+  t = t.replace(/\\subsection\*?(?:\[[^\]]*\])?\s*\{/g, '\\textbf{');
+  t = t.replace(/\\subsubsection\*?(?:\[[^\]]*\])?\s*\{/g, '\\textbf{');
+  t = t.replace(/\\chapter\*?(?:\[[^\]]*\])?\s*\{/g, '\\textbf{');
   let out = '';
   let inDisplay = false;
   for (let i = 0; i < t.length; i++) {

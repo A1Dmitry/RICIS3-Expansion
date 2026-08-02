@@ -40,10 +40,10 @@ Target Function: ${targetFunction}
 Available Axioms (Resolved Problems):
 ${axiomList}
 
-Provide the output as a valid LaTeX document section. Use mathematical notation and refer to the provided axioms if applicable. Keep it concise, professional, and do not use generic AI filler. Structure it with subsections for the phases of the solution. Return ONLY the LaTeX string without markdown code blocks.`;
+Provide the output as a valid LaTeX document section. Use mathematical notation and refer to the provided axioms if applicable. Keep it concise, professional, and do not use generic AI filler.\nSTRICT LaTeX OUTPUT RULES:\n1. Return ONLY a FRAGMENT: paragraphs and math environments. NO \\documentclass, NO \\usepackage, NO \\begin{document}, NO markdown.\n2. DO NOT use \\section, \\subsection, or \\chapter. Use \\textbf{...} for headings instead.\n3. ASCII math only: $\\infty$ $\\to$ $\\leq$ --- never unicode.\n4. Pair every $. Pair every \\begin{env}/\\end{env}. Allowed: equation*, align*, itemize, enumerate.\n5. Max 60 lines. No HTML, no JSON, no error messages.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: "gemini-2.5-flash",
         contents: prompt,
       });
 
@@ -87,7 +87,7 @@ Return the result STRICTLY as a JSON array of objects with the following keys:
 - "type": "scientific_task" or "core_singularity"
 Output ONLY valid JSON.`;
       const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: "gemini-2.5-flash",
         contents: prompt,
       });
       let text = response.text || "[]";
