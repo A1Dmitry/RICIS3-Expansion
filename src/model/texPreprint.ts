@@ -1,25 +1,21 @@
 import { MapState, ProblemNode, Proof, Axiom } from './types';
 import { isRicisCore } from './access';
 import { APP_VERSION, APP_BUILD_LABEL } from '../version';
+import {
+  escText,
+  escPath,
+  sanitizeLabel,
+  isErrorProofLatex,
+  buildStructuralProofLatex,
+  repairAgentLatex,
+} from './latexGuard';
 
-/** Preprint bridge mode. */
-export type TexBridgeMode =
-  /** RICIS only: SP2/SP3/SP4/A1-A6, no classical lim / L'Hopital. */
-  | 'ricis_pure'
-  /** RICIS + classical bridges: classical intermediate with re-index provenance. */
-  | 'classical_bridges';
+export type TexBridgeMode = 'ricis_pure' | 'classical_bridges';
 
 export type TexPreprintOptions = {
   mode: TexBridgeMode;
   rootId?: string;
 };
-
-function escLatex(s: string): string {
-  return String(s ?? '')
-    .replace(/\\/g, '\\textbackslash{}')
-    .replace(/([{}$&#_^%~])/g, '\\$1')
-    .replace(/\n/g, ' ');
-}
 
 function parentsOf(node: ProblemNode, map: MapState): string[] {
   const fromDeps = node.dependencyIds || [];
@@ -27,7 +23,6 @@ function parentsOf(node: ProblemNode, map: MapState): string[] {
   return Array.from(new Set([...fromDeps, ...fromEdges]));
 }
 
-/** Expand to roots: all ancestors of selectedId + self, topological order roots first. */
 export function expandToRoot(map: MapState, selectedId: string): ProblemNode[] {
   const byId = new Map(map.nodes.map(n => [n.id, n]));
   if (!byId.has(selectedId)) return [];
@@ -74,22 +69,38 @@ export function expandToRoot(map: MapState, selectedId: string): ProblemNode[] {
 function modeTitle(mode: TexBridgeMode): string {
   return mode === 'ricis_pure'
     ? 'RICIS-pure (no classical limits)'
-    : 'RICIS + classical bridges (lim / intermediate classical layer with provenance)';
+    : 'RICIS + classical bridges';
 }
 
 function modeAbstract(mode: TexBridgeMode): string {
   if (mode === 'ricis_pure') {
     return (
       'This preprint expands the selected singularity node to the graph roots along dependency edges. ' +
-      'All reductions follow RICIS-III only: L0/L1, SP2 (algebra before axioms), SP3 (indexed zeros), SP4 (semantic indexing), A1--A6. ' +
-      'Classical limit processes and L\'Hopital-type bridges are excluded.'
+      'All reductions follow RICIS-III only: L0/L1, SP2, SP3, SP4, A1--A6. ' +
+      "Classical limit processes and L'H\\^{o}pital-type bridges are excluded."
     );
   }
   return (
     'This preprint expands the selected singularity node to the graph roots. ' +
-    'Primary reductions follow RICIS-III (L0/L1, SP2--SP4, A1--A6). ' +
-    'Where a classical intermediate step is used as a bridge (e.g. lim, series), it is marked explicitly as a classical bridge and must preserve provenance back to indexed zeros $0_F$ / infinities $\\infty_F$.'
+    'Primary reductions follow RICIS-III. Classical intermediates are allowed only as explicit bridges ' +
+    'with re-indexing to $0_F$ / $\\infty_F$ so provenance is preserved.'
   );
+}
+
+function safeProofBody(node: ProblemNode, proof: Proof | undefined): string {
+  if (!proof || isErrorProofLatex(proof.latex)) {
+    return buildStructuralProofLatex(
+      node.title,
+      node.targetFunction,
+      node.id,
+      proof?.steps
+    );
+  }
+  const repaired = repairAgentLatex(proof.latex);
+  if (isErrorProofLatex(repaired) || !repaired.trim()) {
+    return buildStructuralProofLatex(node.title, node.targetFunction, node.id, proof.steps);
+  }
+  return repaired;
 }
 
 function sectionForNode(
@@ -102,29 +113,30 @@ function sectionForNode(
   const axioms: Axiom[] = map.axioms.filter(a => a.sourceNodeId === node.id);
   const parentTitles = parentsOf(node, map)
     .map(id => map.nodes.find(n => n.id === id)?.title || id)
-    .map(escLatex);
+    .map(escText);
+  const lab = sanitizeLabel(node.id);
 
   const lines: string[] = [];
-  lines.push(`\\subsection{N${index}: ${escLatex(node.title)}}`);
-  lines.push(`\\label{sec:${node.id}}`);
-  lines.push(`\\textbf{ID:} \\texttt{${escLatex(node.id)}} \\quad`);
-  lines.push(`\\textbf{State:} ${escLatex(node.state)} \\quad`);
+  lines.push(`\\subsection{N${index}: ${escText(node.title)}}`);
+  lines.push(`\\label{sec:${lab}}`);
+  lines.push(`\\textbf{ID:} ${escPath(node.id)}\\quad`);
+  lines.push(`\\textbf{State:} ${escText(node.state)}\\quad`);
   lines.push(`\\textbf{Depth:} ${node.fractalDepth}`);
-  if (isRicisCore(node)) lines.push(`\\quad \\textbf{RICIS core}`);
+  if (isRicisCore(node)) lines.push(`\\quad\\textbf{RICIS core}`);
   lines.push('');
-  lines.push(`\\paragraph{Target function.}`);
-  lines.push(`\\begin{quote}\\small\\texttt{${escLatex(node.targetFunction)}}\\end{quote}`);
+  lines.push('\\paragraph{Target function.}');
+  lines.push(`\\begin{quote}\\small ${escPath(node.targetFunction)}\\end{quote}`);
   lines.push('');
-  lines.push(`\\paragraph{Description.}`);
-  lines.push(escLatex(node.description || '---'));
+  lines.push('\\paragraph{Description.}');
+  lines.push(escText(node.description || '---'));
   if (node.singularityHint) {
     lines.push('');
-    lines.push(`\\paragraph{Singularity hint.}`);
-    lines.push(escLatex(node.singularityHint));
+    lines.push('\\paragraph{Singularity hint.}');
+    lines.push(escText(node.singularityHint));
   }
   if (parentTitles.length) {
     lines.push('');
-    lines.push(`\\paragraph{Dependencies (toward root).}`);
+    lines.push('\\paragraph{Dependencies (toward root).}');
     lines.push('\\begin{itemize}');
     for (const t of parentTitles) lines.push(`  \\item ${t}`);
     lines.push('\\end{itemize}');
@@ -139,54 +151,26 @@ function sectionForNode(
   } else {
     lines.push('\\paragraph{Reduction mode: classical bridges allowed.}');
     lines.push(
-      'If a classical intermediate (e.g. $\\lim_{x\\to a}$, L\'Hopital) is used, record it as a \\emph{bridge} and re-index the result under RICIS ($0_F$, $\\infty_F$) so provenance is not lost.'
+      'Classical intermediate (e.g. $\\lim_{x\\to a}$) only as an explicit bridge, then re-index under RICIS ($0_F$, $\\infty_F$).'
     );
-    lines.push('\\begin{align*}');
-    lines.push(
-      `  &\\text{Classical bridge candidate:} \\quad ${escLatex(node.targetFunction)} \\\\[0.3em]`
-    );
-    lines.push(
-      '  &\\xrightarrow{\\text{bridge}} \\text{numerical/classical value} \\xrightarrow{\\text{re-index}} 0_F,\\ \\infty_F \\text{ under L1.}'
-    );
-    lines.push('\\end{align*}');
   }
 
-  if (proof?.latex) {
-    lines.push('');
-    lines.push('\\paragraph{Stored formal proof (from map).}');
-    lines.push('\\begin{verbatim}');
-    const body = proof.latex.slice(0, 4000).replace(/\\end\\{verbatim\\}/gi, '\\end{verb atim}');
-    lines.push(body);
-    lines.push('\\end{verbatim}');
-  } else if (proof?.steps?.length) {
-    lines.push('');
-    lines.push('\\paragraph{Proof steps.}');
-    lines.push('\\begin{enumerate}');
-    for (const st of proof.steps) {
-      lines.push(
-        `  \\item \\textbf{${escLatex(String(st.phase))} ${escLatex(st.name)}.} ${escLatex(st.action)}\\\\ \\texttt{${escLatex(st.expression)}}`
-      );
-    }
-    lines.push('\\end{enumerate}');
-    if (proof.finalResult) {
-      lines.push(`\\textbf{Result:} \\texttt{${escLatex(proof.finalResult)}}`);
-    }
-  } else {
-    lines.push('');
-    lines.push('\\paragraph{Proof status.}');
+  lines.push('');
+  lines.push('\\paragraph{Formal proof.}');
+  if (proof && isErrorProofLatex(proof.latex)) {
     lines.push(
-      node.state === 'resolved'
-        ? 'Resolved on the map; detailed LaTeX proof not stored --- expand via RICIS pipeline offline.'
-        : 'Unresolved --- section is a dependency skeleton for the preprint expansion to the root.'
+      '\\textit{Stored API proof was invalid (network/HTML error). Using structural offline proof.}'
     );
+    lines.push('');
   }
+  lines.push(safeProofBody(node, proof));
 
   if (axioms.length) {
     lines.push('');
     lines.push('\\paragraph{Extracted axioms.}');
     lines.push('\\begin{itemize}');
     for (const a of axioms) {
-      lines.push(`  \\item \\texttt{${escLatex(a.id)}}: ${escLatex(a.formalStatement)}`);
+      lines.push(`  \\item ${escPath(a.id)}: ${escText(a.formalStatement)}`);
     }
     lines.push('\\end{itemize}');
   }
@@ -194,7 +178,6 @@ function sectionForNode(
   return lines.join('\n');
 }
 
-/** Full preprint: selected -> expand to roots, 2 bridge modes. */
 export function buildTexPreprint(
   map: MapState,
   selectedId: string,
@@ -208,22 +191,23 @@ export function buildTexPreprint(
 
   const roots = chain.filter(n => parentsOf(n, map).length === 0);
   const rootNote =
-    roots.length > 0
-      ? roots.map(r => r.title).join('; ')
-      : 'graph roots (no dependencyIds)';
+    roots.length > 0 ? roots.map(r => r.title).join('; ') : 'graph roots';
 
   const header = `\\documentclass[11pt,a4paper]{article}
+\\usepackage[T2A,T1]{fontenc}
+\\usepackage[utf8]{inputenc}
+\\usepackage[russian,english]{babel}
 \\usepackage[margin=2.2cm]{geometry}
 \\usepackage{amsmath,amssymb,amsthm}
 \\usepackage{hyperref}
 \\usepackage{enumitem}
-\\usepackage[T1]{fontenc}
-\\usepackage[utf8]{inputenc}
 \\usepackage{lmodern}
 
-\\title{RICIS-III Preprint Expansion\\\\
-\\large ${escLatex(title)}}
-\\author{Generated by RICIS3-Expansion ${escLatex(APP_BUILD_LABEL)}}
+\\hypersetup{unicode=true,pdftitle={RICIS-III Preprint},pdfauthor={RICIS3-Expansion}}
+
+\\title{RICIS-III Preprint Expansion\\\\[0.4em]
+\\large ${escText(title)}}
+\\author{Generated by RICIS3-Expansion ${escText(APP_BUILD_LABEL)}}
 \\date{${date}}
 
 \\begin{document}
@@ -231,9 +215,9 @@ export function buildTexPreprint(
 
 \\begin{abstract}
 ${modeAbstract(mode)}
-Selected node: \\textbf{${escLatex(title)}} (\\texttt{${escLatex(selectedId)}}).
-Chain length: ${chain.length} nodes to root(s): ${escLatex(rootNote)}.
-Mode: \\emph{${escLatex(modeTitle(mode))}}.
+Selected node: \\textbf{${escText(title)}} (${escPath(selectedId)}).
+Chain length: ${chain.length} nodes to root(s): ${escText(rootNote)}.
+Mode: \\emph{${escText(modeTitle(mode))}}.
 \\end{abstract}
 
 \\tableofcontents
@@ -242,8 +226,8 @@ Mode: \\emph{${escLatex(modeTitle(mode))}}.
 \\section{Meta}
 \\begin{itemize}
   \\item Application: RICIS-III Singularity Map
-  \\item Version: ${escLatex(APP_VERSION)}
-  \\item Bridge mode: ${escLatex(mode)}
+  \\item Version: ${escText(APP_VERSION)}
+  \\item Bridge mode: \\texttt{${escText(mode)}}
   \\item Expansion: dependency closure to graph roots (edges + dependencyIds)
 \\end{itemize}
 
@@ -257,8 +241,8 @@ Classical $\\lim$ is not a proof step. Identity L1 and continuity L0 are laws, n
 `
       : `In \\textbf{classical\\_bridges} mode a classical intermediate may appear only as an explicit bridge:
 \\begin{enumerate}
-  \\item State the classical step (limit, series, L'Hopital, blow-up).
-  \\item Re-index the outcome under RICIS ($0_F$, $\\infty_F$) with provenance string.
+  \\item State the classical step (limit, series, L'H\\^{o}pital, blow-up).
+  \\item Re-index the outcome under RICIS ($0_F$, $\\infty_F$) with provenance.
   \\item Continue with SP2--SP4 so the bridge cannot erase identity.
 \\end{enumerate}
 `;
@@ -286,7 +270,6 @@ Generated automatically. DOI seed: 10.5281/zenodo.18116204 (RICIS formal core).
   );
 }
 
-/** Download .tex in the browser. */
 export function downloadTexPreprint(
   map: MapState,
   selectedId: string,
@@ -295,7 +278,7 @@ export function downloadTexPreprint(
   const tex = buildTexPreprint(map, selectedId, options);
   const chain = expandToRoot(map, selectedId);
   const modeTag = options.mode === 'ricis_pure' ? 'ricis' : 'classical';
-  const filename = `ricis3-preprint-${selectedId.slice(0, 24)}-${modeTag}-${new Date()
+  const filename = `ricis3-preprint-${sanitizeLabel(selectedId).slice(0, 24)}-${modeTag}-${new Date()
     .toISOString()
     .slice(0, 10)}.tex`;
   const blob = new Blob([tex], { type: 'application/x-tex;charset=utf-8' });
