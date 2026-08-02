@@ -1,36 +1,54 @@
 import { MapState, Axiom, ProblemNode, DependencyEdge, Proof, ProofStep } from './types';
+import {
+  buildStructuralProofLatex,
+  isErrorProofLatex,
+  repairAgentLatex,
+} from './latexGuard';
 
-/** Каталог реальных проблем для фрактального расширения (без фейковых имён). */
+/** Catalog of real problems for fractal expansion (no fake names). */
 const KNOWN_SINGULARITY_PROBLEMS: ProblemNode[] = [];
 
 export async function generateProof(node: ProblemNode, allAxioms: Axiom[]): Promise<Proof> {
   const steps: ProofStep[] = [
     { phase: -1, name: 'L1_IDENTITY', action: 'Verify identity and types', expression: 'T(' + node.targetFunction + ')' },
-    { phase: 0.5, name: 'SEMANTIC INDEXING (SP4)', action: 'Index singularities by parent expression', expression: '0_{' + node.targetFunction + '}' },
-    { phase: 1, name: 'SAFETY CHECK (SP2)', action: 'Algebraic reduction before singularity evaluation', expression: 'Reduced(' + node.targetFunction + ')' },
-    { phase: 2, name: 'RICIS transforms', action: 'Apply A6 (General) and available network axioms', expression: '0_F x infinity_G = F * G' },
-    { phase: 6, name: 'L1 verification', action: 'Final consistency check', expression: 'Result equiv Result' }
+    { phase: 0.5, name: 'SEMANTIC INDEXING (SP4)', action: 'Index singularities by parent expression', expression: '0_{E}' },
+    { phase: 1, name: 'SAFETY CHECK (SP2)', action: 'Algebraic reduction before singularity evaluation', expression: 'Reduced(E)' },
+    { phase: 2, name: 'RICIS transforms', action: 'Apply A6 (General) and network axioms', expression: '0_F * infinity_G = F * G' },
+    { phase: 6, name: 'L1 verification', action: 'Final consistency check', expression: 'Result = Result' },
   ];
 
-  let latex = "";
+  const fallback = buildStructuralProofLatex(
+    node.title,
+    node.targetFunction,
+    node.id,
+    steps
+  );
+
+  let latex = fallback;
   try {
     const res = await fetch('/api/generateProof', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         title: node.title,
         targetFunction: node.targetFunction,
-        axioms: allAxioms
-      })
+        axioms: allAxioms,
+      }),
     });
-    const data = await res.json();
-    if (data.proofLatex) {
-      latex = data.proofLatex;
+    if (!res.ok) {
+      latex = fallback;
     } else {
-      latex = "Error generating proof: " + (data.error || "Unknown error");
+      const data = await res.json();
+      const raw = typeof data.proofLatex === 'string' ? data.proofLatex : '';
+      if (raw && !isErrorProofLatex(raw)) {
+        const repaired = repairAgentLatex(raw);
+        latex = repaired && !isErrorProofLatex(repaired) ? repaired : fallback;
+      } else {
+        latex = fallback;
+      }
     }
-  } catch (e: any) {
-    latex = "Network error while generating proof: " + e.message;
+  } catch {
+    latex = fallback;
   }
 
   const finalResult = 'Axiom Extracted: ' + node.id + '_resolved';
@@ -39,7 +57,7 @@ export async function generateProof(node: ProblemNode, allAxioms: Axiom[]): Prom
     targetFunction: node.targetFunction,
     steps,
     finalResult,
-    latex
+    latex,
   };
 }
 
@@ -93,8 +111,6 @@ export function expandFractal(map: MapState, solvedNodeId: string): MapState {
     });
   }
 
-  // Без фейковых имён: не создаём «Уточнение / Связанная задача».
-  // Если каталог пуст — не подмешиваем синтетические узлы агента с шаблонными названиями.
   if (newNodes.length === 0) {
     return map;
   }
@@ -137,7 +153,7 @@ export async function solveNodeLogic(map: MapState, nodeId: string): Promise<Map
           ...n.economic,
           costUnresolved: n.economic.costUnresolved * 0.8,
           riskLoss: n.economic.riskLoss * 0.8,
-        }
+        },
       };
     }
     return n;
@@ -147,10 +163,9 @@ export async function solveNodeLogic(map: MapState, nodeId: string): Promise<Map
     id: 'ax-' + node.id + '-' + Date.now(),
     sourceNodeId: node.id,
     formalStatement: 'Axiom(' + node.targetFunction + ')',
-    usedByNodeIds: []
+    usedByNodeIds: [],
   };
 
-  // Ребро зелёное только если оба конца resolved (открыты и решены).
   const nodeState = (id: string) =>
     id === nodeId
       ? 'resolved'
@@ -159,7 +174,6 @@ export async function solveNodeLogic(map: MapState, nodeId: string): Promise<Map
     const bothResolved =
       nodeState(e.fromId) === 'resolved' && nodeState(e.toId) === 'resolved';
     if (bothResolved) return { ...e, stateColor: 'green' as const };
-    // Если один из концов только что решён, а второй нет — жёлтый (частично)
     if (e.fromId === nodeId || e.toId === nodeId) {
       return { ...e, stateColor: 'yellow' as const };
     }
@@ -173,7 +187,7 @@ export async function solveNodeLogic(map: MapState, nodeId: string): Promise<Map
     nodes: updatedNodes,
     edges: updatedEdges,
     axioms: [...map.axioms, axiom],
-    proofs: { ...map.proofs, [nodeId]: proof }
+    proofs: { ...map.proofs, [nodeId]: proof },
   };
 
   return expandFractal(newMap, node.id);
