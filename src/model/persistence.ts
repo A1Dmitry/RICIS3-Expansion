@@ -56,13 +56,6 @@ function loadLegacyLocalStorage(): MapState | null {
   }
 }
 
-/**
- * Загрузка:
- * 1) IndexedDB (если не пуста)
- * 2) legacy localStorage → в IDB
- * 3) одноразовая Zenodo-миграция (если БД пуста) → полный seed с Millennium + Registry
- * 4) fallback: in-memory Zenodo seed
- */
 export async function hydrateInitialState(): Promise<MapState> {
   const fromDb = await dbLoadMap();
   if (fromDb && fromDb.nodes.length > 0) return fromDb;
@@ -105,9 +98,6 @@ export async function clearMapDb(): Promise<void> {
   await dbClear();
 }
 
-/**
- * Сброс карты с полной Zenodo-накаткой (кнопка «Сброс карты»).
- */
 export async function resetMapWithZenodoSeed(): Promise<MapState> {
   await dbClear();
   await forceZenodoReseed();
