@@ -5,7 +5,7 @@ import {
   escText,
   escPath,
   sanitizeLabel,
-  isErrorProofLatex,
+  isUnsafeProofLatex,
   buildStructuralProofLatex,
   repairAgentLatex,
 } from './latexGuard';
@@ -26,7 +26,6 @@ function parentsOf(node: ProblemNode, map: MapState): string[] {
 export function expandToRoot(map: MapState, selectedId: string): ProblemNode[] {
   const byId = new Map(map.nodes.map(n => [n.id, n]));
   if (!byId.has(selectedId)) return [];
-
   const needed = new Set<string>();
   const stack = [selectedId];
   while (stack.length) {
@@ -37,7 +36,6 @@ export function expandToRoot(map: MapState, selectedId: string): ProblemNode[] {
     if (!n) continue;
     for (const p of parentsOf(n, map)) stack.push(p);
   }
-
   const indeg = new Map<string, number>();
   for (const id of needed) indeg.set(id, 0);
   for (const id of needed) {
@@ -88,7 +86,8 @@ function modeAbstract(mode: TexBridgeMode): string {
 }
 
 function safeProofBody(node: ProblemNode, proof: Proof | undefined): string {
-  if (!proof || isErrorProofLatex(proof.latex)) {
+  // Old IndexedDB proofs often embed \\section* and $$ — unsafe under \\subsection.
+  if (!proof || isUnsafeProofLatex(proof.latex)) {
     return buildStructuralProofLatex(
       node.title,
       node.targetFunction,
@@ -97,7 +96,7 @@ function safeProofBody(node: ProblemNode, proof: Proof | undefined): string {
     );
   }
   const repaired = repairAgentLatex(proof.latex);
-  if (isErrorProofLatex(repaired) || !repaired.trim()) {
+  if (isUnsafeProofLatex(repaired) || !repaired.trim()) {
     return buildStructuralProofLatex(node.title, node.targetFunction, node.id, proof.steps);
   }
   return repaired;
@@ -157,9 +156,9 @@ function sectionForNode(
 
   lines.push('');
   lines.push('\\paragraph{Formal proof.}');
-  if (proof && isErrorProofLatex(proof.latex)) {
+  if (proof && isUnsafeProofLatex(proof.latex)) {
     lines.push(
-      '\\textit{Stored API proof was invalid (network/HTML error). Using structural offline proof.}'
+      '\\textit{Stored proof replaced by structural offline form (unsafe or invalid LaTeX).}'
     );
     lines.push('');
   }
