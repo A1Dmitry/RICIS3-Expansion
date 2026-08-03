@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { AddNodeModal } from './AddNodeModal';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { useMapStore } from '../store/mapStore';
 import * as THREE from 'three';
@@ -14,6 +15,15 @@ import {
 import { layoutZones, layoutNodes, zoneVisualRadius, nodeVisualRadius } from '../model/physics';
 import { ZoneBubble, NodeBubble, NodeLabel } from './Bubbles';
 import { downloadTexPreprint, type TexBridgeMode } from '../model/texPreprint';
+
+
+function getZoneColor(id: string) {
+  if (zoneColors[id]) return zoneColors[id];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+  return '#' + '00000'.substring(0, 6 - c.length) + c;
+}
 
 const zoneColors: Record<string, string> = {
   math: '#3b82f6',
@@ -61,6 +71,9 @@ export const Map3D: React.FC = () => {
   const map = useMapStore();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showProof, setShowProof] = useState(false);
+  const [showAddNode, setShowAddNode] = useState(false);
+  const [isSolving, setIsSolving] = useState(false);
+  const [solveLogs, setSolveLogs] = useState<string[]>([]);
   const [pathNodeIds, setPathNodeIds] = useState<string[]>([]);
   const [agentMsg, setAgentMsg] = useState<string | null>(null);
   const [texMode, setTexMode] = useState<TexBridgeMode>('ricis_pure');
@@ -82,11 +95,23 @@ export const Map3D: React.FC = () => {
     setShowProof(false);
   }, [selectedNodeId]);
 
-  const handleSolve = (id: string) => {
+  const handleSolve = async (id: string) => {
     const node = map.nodes.find(n => n.id === id);
     if (!node || !isNodeAvailable(node, map) || node.state === 'resolved') return;
-    map.solveNode(id);
-    setPathNodeIds([]);
+    setIsSolving(true);
+    setSolveLogs(['Инициализация агента RICIS-III...']);
+    
+    setTimeout(() => setSolveLogs(l => [...l, 'Сборка контекста и аксиом...']), 500);
+    setTimeout(() => setSolveLogs(l => [...l, 'Отправка запроса на /api/generateProof...']), 1500);
+    setTimeout(() => setSolveLogs(l => [...l, 'Синтез доказательства и применение SP1-SP4...']), 3000);
+
+    await map.solveNode(id);
+    setSolveLogs(l => [...l, 'Решение синтезировано успешно!']);
+    setTimeout(() => {
+      setIsSolving(false);
+      setSolveLogs([]);
+      setPathNodeIds([]);
+    }, 2000);
   };
 
   const handleFindPathToRicis = () => {
@@ -240,12 +265,18 @@ export const Map3D: React.FC = () => {
       <main className="flex-1 flex relative overflow-hidden">
         <aside className="w-64 border-r border-cyan-900/20 bg-[#070707] p-4 flex flex-col gap-5 shrink-0 z-10 overflow-y-auto">
           <section>
+            <button type="button" onClick={() => setShowAddNode(true)} className="w-full text-left px-2 py-2 text-[11px] font-bold uppercase tracking-wider rounded border border-emerald-800/50 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50 hover:border-emerald-700/60 mb-2">
+              + Добавить задачу
+            </button>
+          </section>
+
+          <section>
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Science Zones</h3>
             <div className="space-y-2">
               {map.zones.map(zone => (
                 <div key={zone.id} className="flex items-center justify-between p-2 bg-neutral-900/40 border border-neutral-800/50 rounded">
                   <span className="text-xs text-gray-300">{zone.name}</span>
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: zoneColors[zone.id] || '#fff' }} />
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getZoneColor(zone.id) }} />
                 </div>
               ))}
             </div>
@@ -264,7 +295,16 @@ export const Map3D: React.FC = () => {
               ))}
             </div>
             {selectedNode && selectedNode.state !== 'resolved' && isNodeAvailable(selectedNode, map) && (
-              <button type="button" onClick={() => handleSolve(selectedNode.id)} className="mt-2 w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10px] uppercase tracking-wider rounded">Execute RICIS Solution</button>
+              <div className="mt-2 w-full">
+                {isSolving && solveLogs.length > 0 && (
+                  <div className="mt-2 mb-2 bg-black/80 border border-cyan-900 p-2 rounded max-h-32 overflow-y-auto">
+                    {solveLogs.map((log, i) => (
+                      <p key={i} className="text-[9px] text-cyan-300 font-mono mb-1">&gt; {log}</p>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => handleSolve(selectedNode.id)} disabled={isSolving} className="w-full py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-900/50 disabled:text-cyan-400/50 text-white font-bold text-[10px] uppercase tracking-wider rounded">{isSolving ? 'Агент вычисляет (RICIS-III)...' : 'Синтезировать решение (RICIS-III)'}</button>
+              </div>
             )}
           </section>
 
@@ -300,7 +340,7 @@ export const Map3D: React.FC = () => {
 
             {map.zones.map(zone => {
               const pos = zonePositions[zone.id] || [0, 0, 0];
-              const color = zoneColors[zone.id] || '#ffffff';
+              const color = getZoneColor(zone.id);
               const radius = zoneRadii[zone.id] || 5;
               return <ZoneBubble key={zone.id} position={pos} color={color} radius={radius} />;
             })}
@@ -439,6 +479,10 @@ export const Map3D: React.FC = () => {
         </div>
       </main>
 
+      
+      {showAddNode && (
+        <AddNodeModal onClose={() => setShowAddNode(false)} parentId={selectedNodeId || undefined} />
+      )}
       <footer className="h-8 border-t border-cyan-900/30 bg-[#080808] flex items-center px-4 shrink-0">
         <div className="flex gap-6 text-[9px] font-mono text-cyan-900/70 uppercase">
           <span className="text-cyan-400/90">// {APP_BUILD_LABEL}</span>

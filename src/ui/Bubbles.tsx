@@ -97,15 +97,15 @@ export function NodeLabel({
 }) {
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas');
-    const w = 512;
-    const h = subtitle ? 128 : 96;
+    const w = 1024;
+    const h = subtitle ? 256 : 192;
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new THREE.CanvasTexture(canvas);
     ctx.clearRect(0, 0, w, h);
     
-    ctx.font = 'bold 26px Inter, system-ui, sans-serif';
+    ctx.font = 'bold 52px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
@@ -114,19 +114,19 @@ export function NodeLabel({
     
     const metrics1 = ctx.measureText(label);
     
-    ctx.font = 'normal 18px Inter, system-ui, sans-serif';
+    ctx.font = 'normal 36px Inter, system-ui, sans-serif';
     const metrics2 = sub ? ctx.measureText(sub) : { width: 0 };
     
-    const padX = 24;
+    const padX = 48;
     const boxW = Math.min(w - 8, Math.max(metrics1.width, metrics2.width) + padX * 2);
-    const boxH = subtitle ? 72 : 44;
+    const boxH = subtitle ? 144 : 88;
     const bx = (w - boxW) / 2;
     const by = (h - boxH) / 2;
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
     ctx.strokeStyle = 'rgba(34, 211, 238, 0.45)';
-    ctx.lineWidth = 2;
-    const r = 8;
+    ctx.lineWidth = 4;
+    const r = 16;
     ctx.beginPath();
     ctx.moveTo(bx + r, by);
     ctx.arcTo(bx + boxW, by, bx + boxW, by + boxH, r);
@@ -138,16 +138,16 @@ export function NodeLabel({
     ctx.stroke();
     
     if (subtitle) {
-      ctx.font = 'bold 24px Inter, system-ui, sans-serif';
+      ctx.font = 'bold 48px Inter, system-ui, sans-serif';
       ctx.fillStyle = '#e0f2fe';
-      ctx.fillText(label, w / 2, by + boxH / 2 - 12);
-      ctx.font = 'normal 18px Inter, system-ui, sans-serif';
+      ctx.fillText(label, w / 2, by + boxH / 2 - 24);
+      ctx.font = 'normal 36px Inter, system-ui, sans-serif';
       ctx.fillStyle = '#94a3b8'; // text-slate-400
-      ctx.fillText(sub, w / 2, by + boxH / 2 + 14);
+      ctx.fillText(sub, w / 2, by + boxH / 2 + 28);
     } else {
-      ctx.font = 'bold 24px Inter, system-ui, sans-serif';
+      ctx.font = 'bold 48px Inter, system-ui, sans-serif';
       ctx.fillStyle = '#e0f2fe';
-      ctx.fillText(label, w / 2, h / 2 + 1);
+      ctx.fillText(label, w / 2, h / 2 + 2);
     }
     
     const tex = new THREE.CanvasTexture(canvas);
@@ -156,7 +156,7 @@ export function NodeLabel({
   }, [text, subtitle]);
 
   return (
-    <sprite position={[position[0], position[1] + offsetY, position[2]]} scale={[3.2, subtitle ? 0.8 : 0.6, 1]}>
+    <sprite position={[position[0], position[1] + offsetY, position[2]]} scale={[5.2, subtitle ? 1.3 : 0.975, 1]}>
       <spriteMaterial map={texture} transparent depthTest={false} depthWrite={false} />
     </sprite>
   );

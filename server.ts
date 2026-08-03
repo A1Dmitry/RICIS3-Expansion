@@ -43,8 +43,11 @@ ${axiomList}
 Provide the output as a valid LaTeX document section. Use mathematical notation and refer to the provided axioms if applicable. Keep it concise, professional, and do not use generic AI filler.\nSTRICT LaTeX OUTPUT RULES:\n1. Return ONLY a FRAGMENT: paragraphs and math environments. NO \\documentclass, NO \\usepackage, NO \\begin{document}, NO markdown.\n2. DO NOT use \\section, \\subsection, or \\chapter. Use \\textbf{...} for headings instead.\n3. ASCII math only: $\\infty$ $\\to$ $\\leq$ --- never unicode.\n4. Pair every $. Pair every \\begin{env}/\\end{env}. Allowed: equation*, align*, itemize, enumerate.\n5. Max 60 lines. No HTML, no JSON, no error messages.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3.5-flash",
         contents: prompt,
+        config: {
+          responseMimeType: "application/json"
+        }
       });
 
       let text = response.text || "Failed to generate proof.";
@@ -87,8 +90,11 @@ Return the result STRICTLY as a JSON array of objects with the following keys:
 - "type": "scientific_task" or "core_singularity"
 Output ONLY valid JSON.`;
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3.5-flash",
         contents: prompt,
+        config: {
+          responseMimeType: "application/json"
+        }
       });
       let text = response.text || "[]";
       const match = text.match(/\[[\s\S]*\]/);
@@ -96,6 +102,57 @@ Output ONLY valid JSON.`;
         text = match[0];
       }
       res.json({ tasks: JSON.parse(text.trim()) });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+    app.post("/api/aiAssistantNode", async (req, res) => {
+    try {
+      const { title, targetFunction } = req.body;
+      const ai = new GoogleGenAI({ 
+        apiKey: process.env.GEMINI_API_KEY || "dummy",
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+      const prompt = `You are a scientific AI assistant. The user wants to add a new problem to the RICIS-III map.
+Title: ${title || "Not provided"}
+Target Function (rough): ${targetFunction || "Not provided"}
+
+Please do the following:
+1. If Title is "Not provided" or very vague, generate a formal scientific title for this mathematical problem.
+2. Normalize and strictly formalize the "Target Function" into a mathematical expression or limit involving a singularity (e.g. lim x->0 ... or Formalize(...)).
+3. Provide a short, rigorous scientific description of the problem (in Russian).
+4. Provide a hint about where the singularity is (in Russian).
+5. Provide a relevant Wikipedia or scientific link (URL).
+
+Return the result STRICTLY as a JSON object with the keys:
+- "title": string
+- "normalizedFunction": string
+- "description": string
+- "hint": string
+- "link": string
+
+Output ONLY valid JSON.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+
+      let text = response.text || "{}";
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        text = match[0];
+      }
+      res.json(JSON.parse(text.trim()));
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: e.message });
@@ -116,6 +173,8 @@ Output ONLY valid JSON.`;
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MapState } from '../model/types';
+import { MapState, ProblemNode, DependencyEdge, Zone } from '../model/types';
 import { initialMap } from '../model/initialMap';
 import { solveNodeLogic } from '../model/logic';
 import { applyAgentDiscoveries, catalogExhausted, remainingCatalogCount } from '../model/agent';
@@ -22,6 +22,7 @@ interface MapStore extends MapState {
   downloadJson: () => void;
   loadFromJson: (text: string) => Promise<boolean>;
   runAgentDiscovery: (anchorNodeId?: string) => Promise<{ added: number; error?: string }>;
+  addCustomNode: (node: ProblemNode, parentId?: string, newZoneName?: string) => Promise<void>;
   catalogRemaining: () => number;
   isCatalogExhausted: () => boolean;
 }
@@ -97,6 +98,69 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   isCatalogExhausted: () => catalogExhausted(get()),
 
+
+  addCustomNode: async (node, parentId, newZoneName) => {
+    const state = get();
+    let newZones = [...state.zones];
+    let zoneId = node.zoneIds[0] || 'math';
+    
+    if (newZoneName) {
+      const existingZone = newZones.find(z => z.name.toLowerCase() === newZoneName.toLowerCase());
+      if (existingZone) {
+        zoneId = existingZone.id;
+        node.zoneIds = [zoneId];
+      } else {
+        zoneId = 'zone-' + Date.now();
+        node.zoneIds = [zoneId];
+        newZones.push({
+          id: zoneId,
+          name: newZoneName,
+          baseColor: '#00ff00',
+          nodeIds: [],
+          economicProfile: {
+            marketSize: 100000000,
+            monopolyRisk: 0.5
+          }
+        });
+      }
+    }
+
+    const updatedZones = newZones.map(z => 
+      z.id === zoneId ? { ...z, nodeIds: [...z.nodeIds, node.id] } : z
+    );
+
+    let newEdges = [...state.edges];
+    let updatedNodes = [...state.nodes];
+
+    if (parentId) {
+      const parent = updatedNodes.find(n => n.id === parentId);
+      if (parent) {
+        parent.dependentIds = [...new Set([...parent.dependentIds, node.id])];
+        node.dependencyIds = [...new Set([...node.dependencyIds, parentId])];
+        node.fractalDepth = parent.fractalDepth + 1;
+        newEdges.push({
+          id: `edge-${parentId}-${node.id}`,
+          fromId: parentId,
+          toId: node.id,
+          strength: 0.8,
+          stateColor: 'red',
+          economicInfluence: 0.5,
+        });
+      }
+    }
+
+    updatedNodes.push(node);
+
+    const newState = {
+      ...state,
+      nodes: updatedNodes,
+      edges: newEdges,
+      zones: updatedZones
+    };
+    
+    set(newState);
+    void saveMapToDb(newState);
+  },
   runAgentDiscovery: async (anchorNodeId?: string) => {
     const state = get();
     // Обход графа: якорь (если выбран) + все узлы без листьев; дедуп внутри agent
