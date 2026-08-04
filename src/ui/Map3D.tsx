@@ -15,6 +15,8 @@ import {
 import { layoutZones, layoutNodes, zoneVisualRadius, nodeVisualRadius } from '../model/physics';
 import { ZoneBubble, NodeBubble, NodeLabel } from './Bubbles';
 import { downloadTexPreprint, type TexBridgeMode, expandToRoot } from '../model/texPreprint';
+import { AuditPanel } from './AuditPanel';
+import { isMissingTargetFunction } from '../model/audit';
 
 
 let hoveredNodePos: THREE.Vector3 | null = null;
@@ -319,8 +321,12 @@ export const Map3D: React.FC = () => {
       const onPath =
         pathEdgeKeys.has(edge.fromId + '|' + edge.toId) ||
         pathEdgeKeys.has(edge.toId + '|' + edge.fromId);
-      const fromResolved = nodeStateById[edge.fromId] === 'resolved';
-      const toResolved = nodeStateById[edge.toId] === 'resolved';
+      const fromN = map.nodes.find(n => n.id === edge.fromId);
+      const toN = map.nodes.find(n => n.id === edge.toId);
+      const fromResolved = nodeStateById[edge.fromId] === 'resolved' && fromN && !isMissingTargetFunction(fromN);
+      const toResolved = nodeStateById[edge.toId] === 'resolved' && toN && !isMissingTargetFunction(toN);
+      const fromPartial = nodeStateById[edge.fromId] === 'partial' || (fromN && isMissingTargetFunction(fromN));
+      const toPartial = nodeStateById[edge.toId] === 'partial' || (toN && isMissingTargetFunction(toN));
       let color = '#ef4444';
       let opacity = 0.3;
       if (onPath) {
@@ -329,7 +335,7 @@ export const Map3D: React.FC = () => {
       } else if (fromResolved && toResolved) {
         color = '#22c55e';
         opacity = 0.95;
-      } else if (fromResolved || toResolved) {
+      } else if (fromResolved || toResolved || fromPartial || toPartial) {
         color = '#eab308';
         opacity = 0.55;
       }
@@ -345,7 +351,7 @@ export const Map3D: React.FC = () => {
         />
       );
     });
-  }, [map.edges, nodePositions, pathEdgeKeys, nodeStateById, hiddenZones]);
+  }, [map.edges, map.nodes, nodePositions, pathEdgeKeys, nodeStateById, hiddenZones]);
 
   return (
     <div className="w-full h-screen bg-[#050505] text-[#e0e0e0] font-sans overflow-hidden flex flex-col">
@@ -443,6 +449,7 @@ export const Map3D: React.FC = () => {
           <section>
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">ИИ-агент</h3>
             <button type="button" onClick={handleAgentDiscovery} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-violet-800/50 bg-violet-950/40 text-violet-300">Поиск новых проблем</button>
+            <AuditPanel />
             <p className="text-[9px] text-gray-600 mt-1">Каталог остаток: {map.catalogRemaining()}.</p>
             {agentMsg && <p className="text-[10px] text-violet-300 mt-1">{agentMsg}</p>}
           </section>
@@ -479,9 +486,9 @@ export const Map3D: React.FC = () => {
               const locked = !available && node.state !== 'resolved';
 
               let color = '#ef4444';
-              if (node.state === 'resolved') color = '#22c55e';
+              if (node.state === 'resolved' && !isMissingTargetFunction(node)) color = '#22c55e';
+              else if (node.state === 'partial' || isMissingTargetFunction(node)) color = '#eab308';
               else if (locked) color = '#6b7280';
-              else if (node.state === 'partial') color = '#eab308';
               if (onPath) color = locked ? '#94a3b8' : '#22d3ee';
 
               const baseR = nodeVisualRadius(node, map.nodes);
