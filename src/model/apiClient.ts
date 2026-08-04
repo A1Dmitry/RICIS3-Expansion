@@ -1,0 +1,101 @@
+/**
+ * Safe JSON client for RICIS agent endpoints.
+ * On GitHub Pages there is no Express server: /api/* returns HTML (SPA).
+ * This helper detects that and returns a clear error instead of
+ * "Unexpected token '<', \"<html>...\"".
+ */
+
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; status?: number; isStaticHost?: boolean };
+
+const STATIC_HOST_HINT =
+  'Агент API недоступен на статическом хостинге (GitHub Pages). ' +
+  'Запустите локально: npm run dev (нужен GEMINI_API_KEY в окружении).';
+
+function looksLikeHtml(text: string): boolean {
+  const t = text.trim().slice(0, 200).toLowerCase();
+  return (
+    t.startsWith('<!doctype') ||
+    t.startsWith('<html') ||
+    t.includes('<head') ||
+    t.includes('<body')
+  );
+}
+
+/**
+ * POST JSON and parse JSON response. Never throws on HTML bodies.
+ */
+export async function postJson<T = unknown>(
+  url: string,
+  body: unknown,
+  options?: { timeoutMs?: number }
+): Promise<ApiResult<T>> {
+  const timeoutMs = options?.timeoutMs ?? 60_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    const raw = await res.text();
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+
+    if (looksLikeHtml(raw) || (ct.includes('text/html') && !ct.includes('json'))) {
+      return {
+        ok: false,
+        error: STATIC_HOST_HINT,
+        status: res.status,
+        isStaticHost: true,
+      };
+    }
+
+    let data: any;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      return {
+        ok: false,
+        error:
+          'Сервер вернул не-JSON ответ. ' +
+          (raw.slice(0, 80) ? `Начало: ${raw.slice(0, 80).replace(/\s+/g, ' ')}…` : STATIC_HOST_HINT),
+        status: res.status,
+      };
+    }
+
+    if (!res.ok) {
+      let errMsg =
+        (typeof data?.error === 'string' && data.error) ||
+        (typeof data?.message === 'string' && data.message) ||
+        res.statusText ||
+        `HTTP ${res.status}`;
+      if (String(errMsg).includes('429')) {
+        errMsg =
+          'Закончилась квота (лицензия) на API (ошибка 429). Подождите или проверьте ключ.';
+      } else if (String(errMsg).includes('404')) {
+        errMsg = 'Модель недоступна или отключена (ошибка 404).';
+      }
+      return { ok: false, error: errMsg, status: res.status };
+    }
+
+    return { ok: true, data: data as T };
+  } catch (e: any) {
+    if (e?.name === 'AbortError') {
+      return { ok: false, error: 'Таймаут запроса к агенту API.' };
+    }
+    const msg = e?.message || String(e);
+    if (msg.includes("Unexpected token '<'") || msg.includes('is not valid JSON')) {
+      return { ok: false, error: STATIC_HOST_HINT, isStaticHost: true };
+    }
+    return { ok: false, error: msg };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export { STATIC_HOST_HINT };
