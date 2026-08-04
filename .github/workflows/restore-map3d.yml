@@ -1,0 +1,118 @@
+name: Restore Map3D
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/restore-map3d.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore full Map3D from 1d3faa4 and wire audit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Full working UI from v0.3.21
+          git checkout 1d3faa4 -- src/ui/Map3D.tsx
+
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path('src/ui/Map3D.tsx')
+          t = p.read_text(encoding='utf-8')
+          assert len(t) > 20000, 'restore failed size=%s' % len(t)
+
+          if "from './AuditPanel'" not in t:
+              t = t.replace(
+                  "import { downloadTexPreprint, type TexBridgeMode, expandToRoot } from '../model/texPreprint';",
+                  "import { downloadTexPreprint, type TexBridgeMode, expandToRoot } from '../model/texPreprint';\nimport { AuditPanel } from './AuditPanel';\nimport { isMissingTargetFunction } from '../model/audit';",
+              )
+
+          old_edge = """      const fromResolved = nodeStateById[edge.fromId] === 'resolved';
+      const toResolved = nodeStateById[edge.toId] === 'resolved';
+      let color = '#ef4444';
+      let opacity = 0.3;
+      if (onPath) {
+        color = '#22d3ee';
+        opacity = 1;
+      } else if (fromResolved && toResolved) {
+        color = '#22c55e';
+        opacity = 0.95;
+      } else if (fromResolved || toResolved) {
+        color = '#eab308';
+        opacity = 0.55;
+      }"""
+          new_edge = """      const fromN = map.nodes.find(n => n.id === edge.fromId);
+      const toN = map.nodes.find(n => n.id === edge.toId);
+      const fromResolved = nodeStateById[edge.fromId] === 'resolved' && fromN && !isMissingTargetFunction(fromN);
+      const toResolved = nodeStateById[edge.toId] === 'resolved' && toN && !isMissingTargetFunction(toN);
+      const fromPartial = nodeStateById[edge.fromId] === 'partial' || (fromN && isMissingTargetFunction(fromN));
+      const toPartial = nodeStateById[edge.toId] === 'partial' || (toN && isMissingTargetFunction(toN));
+      let color = '#ef4444';
+      let opacity = 0.3;
+      if (onPath) {
+        color = '#22d3ee';
+        opacity = 1;
+      } else if (fromResolved && toResolved) {
+        color = '#22c55e';
+        opacity = 0.95;
+      } else if (fromResolved || toResolved || fromPartial || toPartial) {
+        color = '#eab308';
+        opacity = 0.55;
+      }"""
+          if old_edge in t:
+              t = t.replace(old_edge, new_edge)
+
+          old_c = """              let color = '#ef4444';
+              if (node.state === 'resolved') color = '#22c55e';
+              else if (locked) color = '#6b7280';
+              else if (node.state === 'partial') color = '#eab308';"""
+          new_c = """              let color = '#ef4444';
+              if (node.state === 'resolved' && !isMissingTargetFunction(node)) color = '#22c55e';
+              else if (node.state === 'partial' || isMissingTargetFunction(node)) color = '#eab308';
+              else if (locked) color = '#6b7280';"""
+          if old_c in t:
+              t = t.replace(old_c, new_c)
+
+          old_b = """            <button type=\"button\" onClick={handleAgentDiscovery} className=\"w-full text-left px-2 py-1.5 text-[11px] rounded border border-violet-800/50 bg-violet-950/40 text-violet-300\">Поиск новых проблем</button>
+            <p className=\"text-[9px] text-gray-600 mt-1\">Каталог остаток: {map.catalogRemaining()}.</p>
+            {agentMsg && <p className=\"text-[10px] text-violet-300 mt-1\">{agentMsg}</p>}"""
+          new_b = """            <button type=\"button\" onClick={handleAgentDiscovery} className=\"w-full text-left px-2 py-1.5 text-[11px] rounded border border-violet-800/50 bg-violet-950/40 text-violet-300\">Поиск новых проблем</button>
+            <AuditPanel />
+            <p className=\"text-[9px] text-gray-600 mt-1\">Каталог остаток: {map.catalogRemaining()}.</p>
+            {agentMsg && <p className=\"text-[10px] text-violet-300 mt-1\">{agentMsg}</p>}"""
+          if old_b in t:
+              t = t.replace(old_b, new_b)
+
+          t = t.replace(
+              '}, [map.edges, nodePositions, pathEdgeKeys, nodeStateById, hiddenZones]);',
+              '}, [map.edges, map.nodes, nodePositions, pathEdgeKeys, nodeStateById, hiddenZones]);',
+          )
+          p.write_text(t, encoding='utf-8')
+          print('Map3D restored bytes', len(t))
+          PY
+
+          git add src/ui/Map3D.tsx
+          if git diff --cached --quiet; then
+            echo 'No Map3D changes to commit'
+          else
+            git commit -m "fix: restore full Map3D.tsx from v0.3.21 (1d3faa4) + audit hooks"
+            git push origin HEAD:main
+          fi
+
+          # remove one-shot workflow after success to avoid loops
+          git rm -f .github/workflows/restore-map3d.yml || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: remove one-shot restore-map3d workflow"
+            git push origin HEAD:main
+          fi
