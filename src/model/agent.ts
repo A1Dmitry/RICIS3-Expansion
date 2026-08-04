@@ -1,4 +1,5 @@
 import { MapState, ProblemNode, DependencyEdge } from './types';
+import { postJson } from './apiClient';
 
 /** Normalize for dedup: title + targetFunction. */
 export function normalizeProblemKey(title: string, targetFunction?: string): string {
@@ -90,6 +91,85 @@ function isDuplicateTask(
   return keys.has(k1) || keys.has(k2);
 }
 
+/**
+ * Structural offline discoveries when /api is unavailable (GitHub Pages).
+ * Produces 0–2 child problems derived from the anchor targetFunction,
+ * without inventing prize claims or fake Clay titles.
+ */
+function buildOfflineDiscoveries(
+  anchor: ProblemNode,
+  keys: Set<string>,
+  maxNew: number
+): { nodes: ProblemNode[]; edges: DependencyEdge[] } {
+  const baseTf = (anchor.targetFunction || anchor.title || 'E').trim();
+  const zoneIds = anchor.zoneIds?.length ? [...anchor.zoneIds] : ['math'];
+  const stamp = Date.now();
+
+  const candidates: Array<{
+    title: string;
+    targetFunction: string;
+    description: string;
+    singularityHint: string;
+  }> = [
+    {
+      title: `${anchor.title}: сведение к RICIS-ядру`,
+      targetFunction: `ReduceToRicisCore(${baseTf})`,
+      description: `Структурное расширение узла «${anchor.title}»: сведение целевой функции к операциям L0/L1, SP2–SP4, A1–A6 без классических пределов.`,
+      singularityHint: 'скрытая сингулярность при редукции индексированных нулей',
+    },
+    {
+      title: `${anchor.title}: метрика устойчивости решения`,
+      targetFunction: `StabilityMetric(${baseTf})`,
+      description: `Проверка переносимости решения «${anchor.title}» на ε-возмущения индексов и соседние формулировки той же сингулярности.`,
+      singularityHint: 'неустойчивость при ε-возмущении индекса',
+    },
+  ];
+
+  const nodes: ProblemNode[] = [];
+  const edges: DependencyEdge[] = [];
+
+  for (let i = 0; i < candidates.length && nodes.length < maxNew; i++) {
+    const c = candidates[i];
+    if (isDuplicateTask(c, keys)) continue;
+
+    const id = `agent-offline-${anchor.id}-${stamp}-${i}`;
+    keys.add(normalizeProblemKey(c.title, c.targetFunction));
+    keys.add(normalizeProblemKey(c.title, ''));
+
+    nodes.push({
+      id,
+      title: c.title,
+      description: c.description,
+      state: 'unresolved',
+      type: 'scientific_task',
+      targetFunction: c.targetFunction,
+      zoneIds,
+      dependencyIds: [anchor.id],
+      dependentIds: [],
+      fractalDepth: (anchor.fractalDepth ?? 0) + 1,
+      economic: {
+        costUnresolved: Math.round((anchor.economic?.costUnresolved ?? 100) * 0.45),
+        costToSolve: Math.round((anchor.economic?.costToSolve ?? 80) * 0.35),
+        marketGain: Math.round((anchor.economic?.marketGain ?? 50) * 0.4),
+        riskLoss: Math.round((anchor.economic?.riskLoss ?? 40) * 0.45),
+      },
+      rewardClass: 'reputation',
+      prizeNote: 'Offline structural discovery (no LLM; static host)',
+      singularityHint: c.singularityHint,
+    });
+    edges.push({
+      id: `edge-${anchor.id}-${id}`,
+      fromId: anchor.id,
+      toId: id,
+      strength: 0.55,
+      stateColor: 'red',
+      economicInfluence: 0.35,
+    });
+  }
+
+  return { nodes, edges };
+}
+
 export async function discoverNewProblems(
   map: MapState,
   anchorNodeId: string,
@@ -102,39 +182,43 @@ export async function discoverNewProblems(
   const keys = extraKeys ?? existingProblemKeys(map);
   const existingTitles = map.nodes.map(n => n.title);
 
-  let fetchedTasks: Array<{
+  type DiscoveredTask = {
     title?: string;
     description?: string;
     targetFunction?: string;
     singularityHint?: string;
     zoneId?: string;
     type?: string;
-  }> = [];
+  };
 
-  try {
-    const res = await fetch('/api/discoverTasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parentNode: anchor, existingTitles }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      let errMsg = data.error || 'Unknown server error';
-      if (typeof errMsg === 'string' && errMsg.includes('429')) {
-        errMsg = 'Закончилась квота (лицензия) на API (ошибка 429). Подождите или проверьте ключ.';
-      } else if (typeof errMsg === 'string' && errMsg.includes('404')) {
-        errMsg = 'Модель недоступна или отключена (ошибка 404).';
-      } else if (typeof errMsg === 'object' && JSON.stringify(errMsg).includes('429')) {
-        errMsg = 'Закончилась квота (лицензия) на API (ошибка 429). Подождите или проверьте ключ.';
+  let fetchedTasks: DiscoveredTask[] = [];
+
+  const api = await postJson<{ tasks?: DiscoveredTask[]; error?: string }>(
+    '/api/discoverTasks',
+    { parentNode: anchor, existingTitles }
+  );
+
+  if (!api.ok) {
+    // Offline / static-host fallback: expand from anchor structure without LLM.
+    // Keeps graph-walk usable on GitHub Pages; marks tasks as structural.
+    if (api.isStaticHost) {
+      const offline = buildOfflineDiscoveries(anchor, keys, maxNew);
+      if (offline.nodes.length > 0) {
+        return offline;
       }
-      return { nodes: [], edges: [], error: errMsg };
+      return {
+        nodes: [],
+        edges: [],
+        error:
+          api.error +
+          ' Локальный fallback не нашёл новых уникальных узлов для этой опоры.',
+      };
     }
-    if (data.tasks && Array.isArray(data.tasks)) {
-      fetchedTasks = data.tasks;
-    }
-  } catch (e: any) {
-    console.error('Failed to discover tasks via API', e);
-    return { nodes: [], edges: [], error: e.message };
+    return { nodes: [], edges: [], error: api.error };
+  }
+
+  if (api.data.tasks && Array.isArray(api.data.tasks)) {
+    fetchedTasks = api.data.tasks;
   }
 
   const nodes: ProblemNode[] = [];
