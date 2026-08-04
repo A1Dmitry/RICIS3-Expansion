@@ -123,25 +123,23 @@ export async function fillMissingTargetFunctions(
   for (let i = 0; i < missing.length; i++) {
     const node = missing[i];
     try {
-      const res = await fetch('/api/fillNodeParams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: node.id,
-          title: node.title,
-          description: node.description,
-          singularityHint: node.singularityHint,
-          type: node.type,
-          zoneIds: node.zoneIds,
-        }),
+      const { postJson } = await import('./apiClient');
+      const api = await postJson<AgentFillPayload>('/api/fillNodeParams', {
+        id: node.id,
+        title: node.title,
+        description: node.description,
+        singularityHint: node.singularityHint,
+        type: node.type,
+        zoneIds: node.zoneIds,
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+      if (!api.ok) {
         failed++;
-        errors.push(`${node.id}: ${(data as any).error || res.statusText}`);
+        errors.push(`${node.id}: ${api.error}`);
+        // On static host, one clear error is enough — stop the loop.
+        if (api.isStaticHost) break;
         continue;
       }
-      const data = (await res.json()) as AgentFillPayload;
+      const data = api.data;
       const tf = String(data.targetFunction || data.normalizedFunction || '').trim();
       if (!tf) {
         failed++;
