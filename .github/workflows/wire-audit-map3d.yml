@@ -1,0 +1,134 @@
+name: Wire Audit into Map3D
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/wire-audit-map3d.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Patch Map3D with AuditPanel + yellow missing targets
+        run: |
+          set -eux
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path('src/ui/Map3D.tsx')
+          t = p.read_text(encoding='utf-8')
+          assert len(t) > 20000, len(t)
+
+          if "from './AuditPanel'" not in t:
+              t = t.replace(
+                  "import { downloadTexPreprint, type TexBridgeMode, expandToRoot } from '../model/texPreprint';",
+                  "import { downloadTexPreprint, type TexBridgeMode, expandToRoot } from '../model/texPreprint';\nimport { AuditPanel } from './AuditPanel';\nimport { isMissingTargetFunction } from '../model/audit';",
+              )
+
+          old_edge = (
+              "      const fromResolved = nodeStateById[edge.fromId] === 'resolved';\n"
+              "      const toResolved = nodeStateById[edge.toId] === 'resolved';\n"
+              "      let color = '#ef4444';\n"
+              "      let opacity = 0.3;\n"
+              "      if (onPath) {\n"
+              "        color = '#22d3ee';\n"
+              "        opacity = 1;\n"
+              "      } else if (fromResolved && toResolved) {\n"
+              "        color = '#22c55e';\n"
+              "        opacity = 0.95;\n"
+              "      } else if (fromResolved || toResolved) {\n"
+              "        color = '#eab308';\n"
+              "        opacity = 0.55;\n"
+              "      }"
+          )
+          new_edge = (
+              "      const fromN = map.nodes.find(n => n.id === edge.fromId);\n"
+              "      const toN = map.nodes.find(n => n.id === edge.toId);\n"
+              "      const fromResolved = nodeStateById[edge.fromId] === 'resolved' && fromN && !isMissingTargetFunction(fromN);\n"
+              "      const toResolved = nodeStateById[edge.toId] === 'resolved' && toN && !isMissingTargetFunction(toN);\n"
+              "      const fromPartial = nodeStateById[edge.fromId] === 'partial' || (fromN && isMissingTargetFunction(fromN));\n"
+              "      const toPartial = nodeStateById[edge.toId] === 'partial' || (toN && isMissingTargetFunction(toN));\n"
+              "      let color = '#ef4444';\n"
+              "      let opacity = 0.3;\n"
+              "      if (onPath) {\n"
+              "        color = '#22d3ee';\n"
+              "        opacity = 1;\n"
+              "      } else if (fromResolved && toResolved) {\n"
+              "        color = '#22c55e';\n"
+              "        opacity = 0.95;\n"
+              "      } else if (fromResolved || toResolved || fromPartial || toPartial) {\n"
+              "        color = '#eab308';\n"
+              "        opacity = 0.55;\n"
+              "      }"
+          )
+          if old_edge in t:
+              t = t.replace(old_edge, new_edge)
+              print('edge patched')
+          else:
+              print('edge SKIP')
+
+          old_c = (
+              "              let color = '#ef4444';\n"
+              "              if (node.state === 'resolved') color = '#22c55e';\n"
+              "              else if (locked) color = '#6b7280';\n"
+              "              else if (node.state === 'partial') color = '#eab308';"
+          )
+          new_c = (
+              "              let color = '#ef4444';\n"
+              "              if (node.state === 'resolved' && !isMissingTargetFunction(node)) color = '#22c55e';\n"
+              "              else if (node.state === 'partial' || isMissingTargetFunction(node)) color = '#eab308';\n"
+              "              else if (locked) color = '#6b7280';"
+          )
+          if old_c in t:
+              t = t.replace(old_c, new_c)
+              print('color patched')
+          else:
+              print('color SKIP')
+
+          old_b = (
+              '            <button type="button" onClick={handleAgentDiscovery} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-violet-800/50 bg-violet-950/40 text-violet-300">Поиск новых проблем</button>\n'
+              '            <p className="text-[9px] text-gray-600 mt-1">Каталог остаток: {map.catalogRemaining()}.</p>\n'
+              '            {agentMsg && <p className="text-[10px] text-violet-300 mt-1">{agentMsg}</p>}'
+          )
+          new_b = (
+              '            <button type="button" onClick={handleAgentDiscovery} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-violet-800/50 bg-violet-950/40 text-violet-300">Поиск новых проблем</button>\n'
+              '            <AuditPanel />\n'
+              '            <p className="text-[9px] text-gray-600 mt-1">Каталог остаток: {map.catalogRemaining()}.</p>\n'
+              '            {agentMsg && <p className="text-[10px] text-violet-300 mt-1">{agentMsg}</p>}'
+          )
+          if old_b in t:
+              t = t.replace(old_b, new_b)
+              print('btn patched')
+          else:
+              print('btn SKIP')
+
+          t = t.replace(
+              '}, [map.edges, nodePositions, pathEdgeKeys, nodeStateById, hiddenZones]);',
+              '}, [map.edges, map.nodes, nodePositions, pathEdgeKeys, nodeStateById, hiddenZones]);',
+          )
+
+          assert "AuditPanel" in t and "isMissingTargetFunction" in t
+          p.write_text(t, encoding='utf-8')
+          print('final bytes', len(t))
+          PY
+
+          git add src/ui/Map3D.tsx
+          git commit -m "feat(ui): wire AuditPanel + yellow nodes without targetFunction" || echo 'no change'
+          git push origin HEAD:main
+
+          # remove one-shot workflow
+          git rm -f .github/workflows/wire-audit-map3d.yml || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: remove one-shot wire-audit workflow"
+            git push origin HEAD:main
+          fi
