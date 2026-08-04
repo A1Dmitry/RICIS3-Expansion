@@ -1,0 +1,71 @@
+name: Wire NodeCardDetails
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/wire-node-card.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wire NodeCardDetails into Map3D
+        run: |
+          set -eux
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path('src/ui/Map3D.tsx')
+          t = p.read_text(encoding='utf-8')
+          assert len(t) > 20000
+
+          if "from './NodeCardDetails'" not in t:
+              if "from './AuditPanel'" in t:
+                  t = t.replace(
+                      "import { AuditPanel } from './AuditPanel';",
+                      "import { AuditPanel } from './AuditPanel';\nimport { NodeCardDetails } from './NodeCardDetails';",
+                  )
+              else:
+                  t = t.replace(
+                      "import { downloadTexPreprint, type TexBridgeMode, expandToRoot } from '../model/texPreprint';",
+                      "import { downloadTexPreprint, type TexBridgeMode, expandToRoot } from '../model/texPreprint';\nimport { NodeCardDetails } from './NodeCardDetails';",
+                  )
+
+          start = t.find("              <p className={`text-[11px] text-gray-400 leading-relaxed whitespace-pre-wrap mb-3")
+          end = t.find("              {pathNodeIds.length > 0 && (")
+          if start < 0 or end <= start:
+              if 'NodeCardDetails node={selectedNode}' in t:
+                  print('already wired')
+              else:
+                  raise SystemExit('markers not found: %s %s' % (start, end))
+          else:
+              t = t[:start] + "              <NodeCardDetails node={selectedNode} isExpanded={isNodeExpanded} />\n\n" + t[end:]
+              print('card body replaced')
+
+          assert 'NodeCardDetails' in t
+          p.write_text(t, encoding='utf-8')
+          print('bytes', len(t))
+          PY
+
+          # bump version for cache bust
+          python3 -c "from pathlib import Path; Path('src/version.ts').write_text(\"/** App version RICIS3-Expansion (synced with package.json). */\\nexport const APP_VERSION = '0.3.24';\\nexport const APP_NAME = 'RICIS-III Singularity Map';\\nexport const APP_BUILD_LABEL = \`v\${APP_VERSION}\`;\\n\")"
+
+          git add src/ui/Map3D.tsx src/version.ts
+          git commit -m "feat(ui): wire NodeCardDetails into Map3D card (v0.3.24)"
+          git push origin HEAD:main
+
+          git rm -f .github/workflows/wire-node-card.yml || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: remove one-shot wire-node-card workflow"
+            git push origin HEAD:main
+          fi
