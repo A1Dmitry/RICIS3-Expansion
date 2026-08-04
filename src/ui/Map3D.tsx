@@ -533,7 +533,7 @@ export const Map3D: React.FC = () => {
           </Canvas>
 
           {selectedNode && (
-            <div className={`absolute top-6 right-6 ${isNodeExpanded ? 'w-[600px]' : 'w-80'} bg-black/80 backdrop-blur-md border border-cyan-500/30 rounded-lg p-5 shadow-2xl pointer-events-auto max-h-[90%] overflow-y-auto transition-all duration-300`}>
+            <div className={`absolute top-6 right-6 ${isNodeExpanded ? 'w-[640px]' : 'w-[26rem]'} bg-black/80 backdrop-blur-md border border-cyan-500/30 rounded-lg p-5 shadow-2xl pointer-events-auto max-h-[90%] overflow-y-auto transition-all duration-300`}>
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h2 className="text-sm font-bold text-white leading-tight mb-1">{selectedNode.title}</h2>
