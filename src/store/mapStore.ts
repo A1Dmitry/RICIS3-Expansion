@@ -3,6 +3,7 @@ import { MapState, ProblemNode, DependencyEdge, Zone } from '../model/types';
 import { initialMap } from '../model/initialMap';
 import { solveNodeLogic } from '../model/logic';
 import { applyAgentDiscoveries, catalogExhausted, remainingCatalogCount } from '../model/agent';
+import { auditMarkMissingTargets, fillMissingTargetFunctions } from '../model/audit';
 import { isNodeAvailable } from '../model/access';
 import {
   hydrateInitialState,
@@ -25,6 +26,8 @@ interface MapStore extends MapState {
   addCustomNode: (node: ProblemNode, parentId?: string, newZoneName?: string) => Promise<void>;
   catalogRemaining: () => number;
   isCatalogExhausted: () => boolean;
+  runAuditMissingTargets: () => Promise<{ missingCount: number; demoted: number; missingIds: string[] }>;
+  runFillMissingTargets: () => Promise<{ filled: number; failed: number; errors: string[]; filledIds: string[] }>;
 }
 
 function emptyState(): MapState {
@@ -98,12 +101,11 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   isCatalogExhausted: () => catalogExhausted(get()),
 
-
   addCustomNode: async (node, parentId, newZoneName) => {
     const state = get();
     let newZones = [...state.zones];
     let zoneId = node.zoneIds[0] || 'math';
-    
+
     if (newZoneName) {
       const existingZone = newZones.find(z => z.name.toLowerCase() === newZoneName.toLowerCase());
       if (existingZone) {
@@ -119,13 +121,13 @@ export const useMapStore = create<MapStore>((set, get) => ({
           nodeIds: [],
           economicProfile: {
             marketSize: 100000000,
-            monopolyRisk: 0.5
-          }
-        });
+            monopolyRisk: 0.5,
+          },
+        } as any);
       }
     }
 
-    const updatedZones = newZones.map(z => 
+    const updatedZones = newZones.map(z =>
       z.id === zoneId ? { ...z, nodeIds: [...z.nodeIds, node.id] } : z
     );
 
@@ -155,20 +157,45 @@ export const useMapStore = create<MapStore>((set, get) => ({
       ...state,
       nodes: updatedNodes,
       edges: newEdges,
-      zones: updatedZones
+      zones: updatedZones,
     };
-    
+
     set(newState);
     void saveMapToDb(newState);
   },
+
   runAgentDiscovery: async (anchorNodeId?: string) => {
     const state = get();
-    // Обход графа: якорь (если выбран) + все узлы без листьев; дедуп внутри agent
     const report = await applyAgentDiscoveries(state, anchorNodeId, 2, 6);
     if (report.added > 0) {
       set(report.map);
       void saveMapToDb(report.map);
     }
     return { added: report.added, error: report.error };
+  },
+
+  runAuditMissingTargets: async () => {
+    const state = get();
+    const report = auditMarkMissingTargets(state);
+    set({ ...report.map, hydrated: true });
+    void saveMapToDb(report.map);
+    return {
+      missingCount: report.missingCount,
+      demoted: report.demotedIds.length,
+      missingIds: report.missingIds,
+    };
+  },
+
+  runFillMissingTargets: async () => {
+    const state = get();
+    const result = await fillMissingTargetFunctions(state, { maxNodes: 40, delayMs: 350 });
+    set({ ...result.map, hydrated: true });
+    void saveMapToDb(result.map);
+    return {
+      filled: result.filled,
+      failed: result.failed,
+      errors: result.errors,
+      filledIds: result.filledIds,
+    };
   },
 }));
