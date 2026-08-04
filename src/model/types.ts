@@ -28,6 +28,8 @@ export interface ProblemNode {
   prizeNote?: string;
   /** Суть сингулярности в постановке задачи. */
   singularityHint?: string;
+  /** Внешний источник / Wiki / DOI (кликабельная ссылка в карточке). */
+  sourceUrl?: string;
   /** Уже решаема протоколом RICIS-III (ядро / готовые ветки). */
   ricisSolvable?: boolean;
 }
