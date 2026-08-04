@@ -1,0 +1,196 @@
+name: Expand Node Card
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/expand-node-card.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Expand card panel + improve link rendering
+        run: |
+          set -eux
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path('src/ui/Map3D.tsx')
+          t = p.read_text(encoding='utf-8')
+          assert len(t) > 20000, len(t)
+
+          # Improve URL splitter: strip trailing punctuation from matched URLs
+          old_render = '''const renderTextWithLinks = (text: string, onNodeClick?: (id: string) => void) => {
+  if (!text) return null;
+  const urlRegex = /(https?:\\/\\/[^\\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 hover:underline break-all" onClick={e => e.stopPropagation()}>
+          {part}
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+};'''
+
+          new_render = '''const renderTextWithLinks = (text: string, _onNodeClick?: (id: string) => void) => {
+  if (!text) return null;
+  const urlRegex = /(https?:\\/\\/[^\\s<>"']+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (/^https?:\\/\\//i.test(part)) {
+      const cleaned = part.replace(/[)\\],.;:]+$/g, '');
+      const trailing = part.slice(cleaned.length);
+      return (
+        <span key={i}>
+          <a href={cleaned} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 hover:underline break-all" onClick={e => e.stopPropagation()}>
+            {cleaned}
+          </a>
+          {trailing}
+        </span>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
+/** Extract first http(s) URL from description / free text for explicit source row. */
+function extractSourceUrl(text?: string): string | null {
+  if (!text) return null;
+  const m = text.match(/https?:\\/\\/[^\\s<>"']+/i);
+  if (!m) return null;
+  return m[0].replace(/[)\\],.;:]+$/g, '');
+}'''
+
+          if old_render in t:
+              t = t.replace(old_render, new_render)
+              print('render patched')
+          else:
+              # fallback: only inject extractSourceUrl if missing
+              if 'function extractSourceUrl' not in t:
+                  t = t.replace(
+                      'const formatCurrency = (val?: number) => {',
+                      new_render.split('const formatCurrency')[0] + 'const formatCurrency = (val?: number) => {' if False else
+                      '''/** Extract first http(s) URL from description / free text for explicit source row. */
+function extractSourceUrl(text?: string): string | null {
+  if (!text) return null;
+  const m = text.match(/https?:\\/\\/[^\\s<>"']+/i);
+  if (!m) return null;
+  return m[0].replace(/[)\\],.;:]+$/g, '');
+}
+
+const formatCurrency = (val?: number) => {'''
+                  )
+                  print('extractSourceUrl injected (render left as-is)')
+              else:
+                  print('render SKIP')
+
+          old_card = '''              <p className={`text-[11px] text-gray-400 leading-relaxed whitespace-pre-wrap mb-3 ${!isNodeExpanded && 'line-clamp-4'}`}>{renderTextWithLinks(selectedNode.description)}</p>
+              <code className="block text-[10px] bg-black p-2 rounded border border-gray-800 font-mono text-cyan-200 mb-3">{selectedNode.targetFunction}</code>
+              {selectedNode.singularityHint && (
+                <div className="mb-3 p-2 bg-purple-950/20 border border-purple-900/40 rounded-md">
+                  <p className="text-[9px] font-bold uppercase text-purple-400/90 tracking-wider mb-1">Подсказка о сингулярности</p>
+                  <p className="text-[10px] text-purple-200/80 leading-relaxed">{selectedNode.singularityHint}</p>
+                </div>
+              )}'''
+
+          new_card = r'''              <div className="mb-3">
+                <p className="text-[9px] font-bold uppercase text-gray-500 tracking-wider mb-1">Описание</p>
+                <p className={`text-[11px] text-gray-300 leading-relaxed whitespace-pre-wrap ${!isNodeExpanded && 'line-clamp-6'}`}>{renderTextWithLinks(selectedNode.description)}</p>
+              </div>
+
+              <div className="mb-3">
+                <p className="text-[9px] font-bold uppercase text-gray-500 tracking-wider mb-1">Целевая функция</p>
+                <code className="block text-[10px] bg-black p-2 rounded border border-gray-800 font-mono text-cyan-200 break-all whitespace-pre-wrap">{selectedNode.targetFunction || '—'}</code>
+              </div>
+
+              {selectedNode.singularityHint && (
+                <div className="mb-3 p-2 bg-purple-950/20 border border-purple-900/40 rounded-md">
+                  <p className="text-[9px] font-bold uppercase text-purple-400/90 tracking-wider mb-1">Подсказка о сингулярности</p>
+                  <p className="text-[10px] text-purple-200/80 leading-relaxed whitespace-pre-wrap">{renderTextWithLinks(selectedNode.singularityHint)}</p>
+                </div>
+              )}
+
+              {(() => {
+                const src = extractSourceUrl(selectedNode.description) || extractSourceUrl(selectedNode.singularityHint);
+                if (!src) return null;
+                return (
+                  <div className="mb-3 p-2 bg-cyan-950/20 border border-cyan-900/40 rounded-md">
+                    <p className="text-[9px] font-bold uppercase text-cyan-500/90 tracking-wider mb-1">Источник / ссылка</p>
+                    <a href={src} target="_blank" rel="noopener noreferrer" className="text-[10px] text-cyan-300 hover:text-cyan-200 hover:underline break-all" onClick={e => e.stopPropagation()}>
+                      {src}
+                    </a>
+                  </div>
+                );
+              })()}
+
+              <div className="mb-3 grid grid-cols-2 gap-2 text-[10px]">
+                <div className="p-2 rounded border border-neutral-800 bg-neutral-950/50">
+                  <p className="text-[9px] text-gray-500 uppercase font-bold mb-0.5">Тип</p>
+                  <p className="text-gray-300 font-mono">{selectedNode.type || '—'}</p>
+                </div>
+                <div className="p-2 rounded border border-neutral-800 bg-neutral-950/50">
+                  <p className="text-[9px] text-gray-500 uppercase font-bold mb-0.5">Глубина</p>
+                  <p className="text-gray-300 font-mono">{selectedNode.fractalDepth ?? '—'}</p>
+                </div>
+                {(selectedNode.rewardClass || selectedNode.prizeNote) && (
+                  <>
+                    <div className="p-2 rounded border border-neutral-800 bg-neutral-950/50">
+                      <p className="text-[9px] text-gray-500 uppercase font-bold mb-0.5">Класс награды</p>
+                      <p className="text-gray-300 font-mono">{selectedNode.rewardClass || '—'}</p>
+                    </div>
+                    <div className="p-2 rounded border border-neutral-800 bg-neutral-950/50">
+                      <p className="text-[9px] text-gray-500 uppercase font-bold mb-0.5">Примечание</p>
+                      <p className="text-gray-300 leading-snug">{selectedNode.prizeNote || '—'}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {selectedNode.economic && (
+                <div className="mb-3 p-2 rounded border border-emerald-900/40 bg-emerald-950/15">
+                  <p className="text-[9px] font-bold uppercase text-emerald-500/90 tracking-wider mb-2">Экономика</p>
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
+                    <div className="flex justify-between gap-2"><span className="text-gray-500">Оценка рынка</span><span className="text-emerald-300">{formatCurrency(selectedNode.economic.marketGain) || '—'}</span></div>
+                    <div className="flex justify-between gap-2"><span className="text-gray-500">Стоимость решения</span><span className="text-amber-200/90">{formatCurrency(selectedNode.economic.costToSolve) || '—'}</span></div>
+                    <div className="flex justify-between gap-2"><span className="text-gray-500">Убыток нерешения</span><span className="text-red-300/90">{formatCurrency(selectedNode.economic.costUnresolved) || '—'}</span></div>
+                    <div className="flex justify-between gap-2"><span className="text-gray-500">Риск-потери</span><span className="text-orange-300/90">{formatCurrency(selectedNode.economic.riskLoss) || '—'}</span></div>
+                  </div>
+                </div>
+              )}'''
+
+          if old_card in t:
+              t = t.replace(old_card, new_card)
+              print('card patched')
+          else:
+              print('card SKIP — block not found')
+              raise SystemExit(1)
+
+          if 'function extractSourceUrl' not in t and 'extractSourceUrl' not in t:
+              print('WARNING: extractSourceUrl missing')
+          p.write_text(t, encoding='utf-8')
+          print('final', len(t))
+          PY
+
+          git add src/ui/Map3D.tsx
+          git commit -m "feat(ui): expand node card — full fields, clickable source links" || echo nochange
+          git push origin HEAD:main
+
+          git rm -f .github/workflows/expand-node-card.yml || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: remove one-shot expand-node-card workflow"
+            git push origin HEAD:main
+          fi
