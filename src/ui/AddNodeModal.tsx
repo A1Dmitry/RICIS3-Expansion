@@ -45,10 +45,16 @@ export function AddNodeModal({ onClose, parentId }: { onClose: () => void; paren
     e.preventDefault();
     if (!title) return;
     
+    const normalizedLink = link.trim()
+      ? (/^https?:\/\//i.test(link.trim())
+          ? link.trim()
+          : 'https://' + link.trim().replace(/^\/+/, ''))
+      : undefined;
+
     const node: ProblemNode = {
       id: 'custom-node-' + Date.now(),
       title,
-      description: description + (link ? `\nИсточник: ${link}` : ''),
+      description: description + (normalizedLink ? `\nИсточник: ${normalizedLink}` : ''),
       targetFunction: targetFunction || 'Formalize(N/A)',
       state: 'unresolved',
       type: 'scientific_task',
@@ -65,6 +71,7 @@ export function AddNodeModal({ onClose, parentId }: { onClose: () => void; paren
       rewardClass: 'reputation',
       prizeNote: 'Manual addition',
       singularityHint: hint || 'Неизвестно',
+      sourceUrl: normalizedLink,
     };
 
     await map.addCustomNode(node, parentId, zoneId === 'NEW_ZONE' ? newZoneName : undefined);
@@ -92,7 +99,7 @@ export function AddNodeModal({ onClose, parentId }: { onClose: () => void; paren
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Целевая функция / Формула</label>
-              <input value={targetFunction} onChange={e => setTargetFunction(e.target.value)} className="w-full bg-black border border-neutral-700 rounded p-2 text-sm font-mono text-cyan-200 focus:border-cyan-500 outline-none" placeholder="lim_{x \to 0} F(x) = \infty" />
+              <input value={targetFunction} onChange={e => setTargetFunction(e.target.value)} className="w-full bg-black border border-neutral-700 rounded p-2 text-sm font-mono text-cyan-200 focus:border-cyan-500 outline-none" placeholder="lim_{x \\to 0} F(x) = \\infty" />
             </div>
             <button type="button" onClick={handleAI} disabled={loadingAI} className="px-4 py-2 bg-violet-900/50 border border-violet-700 hover:bg-violet-800/60 text-violet-200 rounded font-bold text-xs uppercase tracking-wider disabled:opacity-50 transition-colors">
               {loadingAI ? 'Загрузка...' : 'Поиск ИИ 🪄'}
