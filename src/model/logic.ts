@@ -25,27 +25,20 @@ export async function generateProof(node: ProblemNode, allAxioms: Axiom[]): Prom
 
   let latex = fallback;
   try {
-    const res = await fetch('/api/generateProof', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: node.title,
-        targetFunction: node.targetFunction,
-        axioms: allAxioms,
-      }),
+    const { postJson } = await import('./apiClient');
+    const api = await postJson<{ proofLatex?: string }>('/api/generateProof', {
+      title: node.title,
+      targetFunction: node.targetFunction,
+      axioms: allAxioms,
     });
-    if (!res.ok) {
-      latex = fallback;
-    } else {
-      const data = await res.json();
-      const raw = typeof data.proofLatex === 'string' ? data.proofLatex : '';
+    if (api.ok) {
+      const raw = typeof api.data.proofLatex === 'string' ? api.data.proofLatex : '';
       if (raw && !isErrorProofLatex(raw)) {
         const repaired = repairAgentLatex(raw);
         latex = repaired && !isErrorProofLatex(repaired) ? repaired : fallback;
-      } else {
-        latex = fallback;
       }
     }
+    // On static host or API error: keep structural fallback (no HTML dump).
   } catch {
     latex = fallback;
   }
