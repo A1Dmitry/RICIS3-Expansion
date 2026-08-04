@@ -14,8 +14,10 @@ import {
 } from '../model/access';
 import { layoutZones, layoutNodes, zoneVisualRadius, nodeVisualRadius } from '../model/physics';
 import { ZoneBubble, NodeBubble, NodeLabel } from './Bubbles';
-import { downloadTexPreprint, type TexBridgeMode } from '../model/texPreprint';
+import { downloadTexPreprint, type TexBridgeMode, expandToRoot } from '../model/texPreprint';
 
+
+let hoveredNodePos: THREE.Vector3 | null = null;
 
 function getZoneColor(id: string) {
   if (zoneColors[id]) return zoneColors[id];
@@ -49,14 +51,34 @@ function OrbitControls() {
     controls.panSpeed = 0.8;
     controls.zoomSpeed = 1.0;
     controls.minDistance = 4;
-    controls.maxDistance = 160;
+    controls.maxDistance = 5000;
     controls.enablePan = true;
     controls.enableZoom = true;
     controls.enableRotate = true;
     controls.screenSpacePanning = true;
     controls.target.set(0, 0, 0);
     controlsRef.current = controls;
+
+    const handleWheel = (e: WheelEvent) => {
+      const factor = Math.min(1.0, Math.abs(e.deltaY) * 0.002);
+      
+      if (e.deltaY < 0 && hoveredNodePos) {
+        // Pan the entire camera rig (target and position) towards the hovered node
+        const panVec = hoveredNodePos.clone().sub(controls.target).multiplyScalar(factor);
+        controls.target.add(panVec);
+        camera.position.add(panVec);
+      } else if (e.deltaY > 0) {
+        // Zoom out: pan the camera rig back towards the origin
+        const center = new THREE.Vector3(0, 0, 0);
+        const panVec = center.clone().sub(controls.target).multiplyScalar(factor);
+        controls.target.add(panVec);
+        camera.position.add(panVec);
+      }
+    };
+    gl.domElement.addEventListener('wheel', handleWheel, { passive: true });
+
     return () => {
+      gl.domElement.removeEventListener('wheel', handleWheel);
       controls.dispose();
       controlsRef.current = null;
     };
@@ -67,9 +89,37 @@ function OrbitControls() {
   return null;
 }
 
+const renderTextWithLinks = (text: string, onNodeClick?: (id: string) => void) => {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 hover:underline break-all" onClick={e => e.stopPropagation()}>
+          {part}
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
+
+const formatCurrency = (val?: number) => {
+  if (val === undefined) return '';
+  if (val >= 1e9) return '$' + (val / 1e9).toFixed(1) + 'B';
+  if (val >= 1e6) return '$' + (val / 1e6).toFixed(1) + 'M';
+  return '$' + val.toLocaleString();
+};
+
 export const Map3D: React.FC = () => {
   const map = useMapStore();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [hiddenZones, setHiddenZones] = useState<Set<string>>(new Set());
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const [isNodeExpanded, setIsNodeExpanded] = useState(false);
   const [showProof, setShowProof] = useState(false);
   const [showAddNode, setShowAddNode] = useState(false);
   const [isSolving, setIsSolving] = useState(false);
@@ -78,9 +128,10 @@ export const Map3D: React.FC = () => {
   const [agentMsg, setAgentMsg] = useState<string | null>(null);
   const [texMode, setTexMode] = useState<TexBridgeMode>('ricis_pure');
   const [texMsg, setTexMsg] = useState<string | null>(null);
+  const [jsonMsg, setJsonMsg] = useState<string | null>(null);
 
   const selectedNode = map.nodes.find(n => n.id === selectedNodeId) || null;
-  const availability = useMemo(() => countAvailable(map), [map.nodes, map.edges]);
+  const availability = useMemo(() => countAvailable(map), [map.nodes, map.edges, hiddenZones]);
   const pathSet = useMemo(() => new Set(pathNodeIds), [pathNodeIds]);
   const pathEdgeKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -135,6 +186,53 @@ export const Map3D: React.FC = () => {
     }
   };
 
+  const handleGenerateJSON = () => {
+    if (!selectedNodeId) return;
+    try {
+      const nodes = expandToRoot(map, selectedNodeId);
+      
+      const payload = {
+        _instruction: "Это контекстный промпт, описывающий логическую цепь решения проблемы до корневых узлов в системе RICIS-III. Выведены полные доказательства и шаги решения, координаты графа исключены.",
+        target_problem_id: selectedNodeId,
+        target_problem_title: map.nodes.find(n => n.id === selectedNodeId)?.title,
+        resolution_chain: nodes.map(n => {
+          const proof = map.proofs[n.id];
+          return {
+            id: n.id,
+            title: n.title,
+            zone: map.zones.find(z => n.zoneIds.includes(z.id))?.name || n.zoneIds[0],
+            description: n.description,
+            target_function: n.targetFunction,
+            singularity_hint: n.singularityHint,
+            state: n.state,
+            economic_valuation: n.economic?.marketGain,
+            proof: proof ? {
+              final_result: proof.finalResult,
+              steps: proof.steps.map(s => `[Phase ${s.phase}] ${s.name} | ${s.action} => ${s.expression}`),
+              latex_math: proof.latex
+            } : null
+          };
+        })
+      };
+      
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ricis-ai-prompt-${selectedNodeId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setJsonMsg('Промпт скачан');
+      setTimeout(() => setJsonMsg(null), 3000);
+    } catch (e) {
+      setJsonMsg('Ошибка генерации JSON');
+      setTimeout(() => setJsonMsg(null), 3000);
+    }
+  };
+
   const handleAgentDiscovery = async () => {
     const res = await map.runAgentDiscovery(selectedNodeId || undefined);
     if (res.error) {
@@ -158,7 +256,7 @@ export const Map3D: React.FC = () => {
   const availableNodes = useMemo(
     () =>
       map.nodes.filter(
-        n => n.state !== 'resolved' && isNodeAvailable(n, map)
+        n => n.state !== 'resolved' && isNodeAvailable(n, map) && !n.zoneIds.every(zid => hiddenZones.has(zid))
       ),
     [map.nodes, map.edges]
   );
@@ -207,7 +305,14 @@ export const Map3D: React.FC = () => {
   }, [map.nodes]);
 
   const edgesLines = useMemo(() => {
-    return map.edges.map(edge => {
+    return map.edges.filter(e => {
+      const fromNode = map.nodes.find(n => n.id === e.fromId);
+      const toNode = map.nodes.find(n => n.id === e.toId);
+      if (!fromNode || !toNode) return false;
+      const fromHidden = fromNode.zoneIds.every(zid => hiddenZones.has(zid));
+      const toHidden = toNode.zoneIds.every(zid => hiddenZones.has(zid));
+      return !fromHidden && !toHidden;
+    }).map(edge => {
       const fromPos = nodePositions[edge.fromId];
       const toPos = nodePositions[edge.toId];
       if (!fromPos || !toPos) return null;
@@ -240,7 +345,7 @@ export const Map3D: React.FC = () => {
         />
       );
     });
-  }, [map.edges, nodePositions, pathEdgeKeys, nodeStateById]);
+  }, [map.edges, nodePositions, pathEdgeKeys, nodeStateById, hiddenZones]);
 
   return (
     <div className="w-full h-screen bg-[#050505] text-[#e0e0e0] font-sans overflow-hidden flex flex-col">
@@ -273,12 +378,30 @@ export const Map3D: React.FC = () => {
           <section>
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Science Zones</h3>
             <div className="space-y-2">
-              {map.zones.map(zone => (
-                <div key={zone.id} className="flex items-center justify-between p-2 bg-neutral-900/40 border border-neutral-800/50 rounded">
-                  <span className="text-xs text-gray-300">{zone.name}</span>
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getZoneColor(zone.id) }} />
-                </div>
-              ))}
+              {map.zones.map(zone => {
+                const isHidden = hiddenZones.has(zone.id);
+                return (
+                  <div key={zone.id} className="flex items-center justify-between p-2 bg-neutral-900/40 border border-neutral-800/50 rounded">
+                    <label className="flex items-center gap-2 cursor-pointer flex-1">
+                      <input 
+                        type="checkbox" 
+                        checked={!isHidden} 
+                        onChange={() => {
+                          setHiddenZones(prev => {
+                            const next = new Set(prev);
+                            if (next.has(zone.id)) next.delete(zone.id);
+                            else next.add(zone.id);
+                            return next;
+                          });
+                        }}
+                        className="accent-cyan-500 rounded border-cyan-800"
+                      />
+                      <span className={`text-[11px] ${isHidden ? 'text-gray-600 line-through' : 'text-gray-300'}`}>{zone.name}</span>
+                    </label>
+                    <span className={`w-2 h-2 rounded-full ${isHidden ? 'opacity-30' : 'opacity-100'}`} style={{ backgroundColor: getZoneColor(zone.id) }} />
+                  </div>
+                );
+              })}
             </div>
           </section>
 
@@ -328,7 +451,7 @@ export const Map3D: React.FC = () => {
         </aside>
 
         <div className="flex-1 relative bg-[radial-gradient(circle_at_center,_#0a0f1a_0%,_#050505_100%)]">
-          <Canvas camera={{ position: [0, 0, 32], fov: 55 }} gl={{ antialias: true, alpha: true }}>
+          <Canvas camera={{ position: [0, 0, 32], fov: 55, far: 10000, near: 0.1 }} gl={{ antialias: true, alpha: true }}>
             <OrbitControls />
             <ambientLight intensity={0.22} />
             <hemisphereLight args={['#1e3a5f', '#050508', 0.55]} />
@@ -338,7 +461,7 @@ export const Map3D: React.FC = () => {
             <pointLight position={[0, 28, 0]} intensity={0.45} color="#ffffff" distance={90} />
             <spotLight position={[12, 30, 8]} angle={0.45} penumbra={0.6} intensity={0.7} color="#cffafe" />
 
-            {map.zones.map(zone => {
+            {map.zones.filter(z => !hiddenZones.has(z.id)).map(zone => {
               const pos = zonePositions[zone.id] || [0, 0, 0];
               const color = getZoneColor(zone.id);
               const radius = zoneRadii[zone.id] || 5;
@@ -347,7 +470,7 @@ export const Map3D: React.FC = () => {
 
             {edgesLines}
 
-            {map.nodes.map(node => {
+            {map.nodes.filter(n => !n.zoneIds.every(zid => hiddenZones.has(zid))).map(node => {
               const pos = nodePositions[node.id] || [0, 0, 0];
               const isSelected = selectedNode?.id === node.id;
               const isCore = isRicisCore(node);
@@ -367,7 +490,15 @@ export const Map3D: React.FC = () => {
               const emissiveIntensity = isSelected ? 0.65 : onPath ? 0.45 : isCore ? 0.35 : locked ? 0.08 : 0.22;
 
               return (
-                <group key={node.id}>
+                <group key={node.id} 
+                  onPointerOver={e => {
+                    e.stopPropagation();
+                    hoveredNodePos = new THREE.Vector3(pos[0], pos[1], pos[2]);
+                  }}
+                  onPointerOut={e => {
+                    hoveredNodePos = null;
+                  }}
+                >
                   <NodeBubble
                     position={pos}
                     color={color}
@@ -385,6 +516,7 @@ export const Map3D: React.FC = () => {
                     position={pos}
                     text={node.title}
                     subtitle={map.zones.find(z => z.id === node.zoneIds[0])?.name || node.zoneIds[0]}
+                    valueText={formatCurrency(node.economic?.marketGain)}
                     offsetY={radius + 0.35}
                   />
                 </group>
@@ -393,14 +525,89 @@ export const Map3D: React.FC = () => {
           </Canvas>
 
           {selectedNode && (
-            <div className="absolute top-6 right-6 w-80 bg-black/80 backdrop-blur-md border border-cyan-500/30 rounded-lg p-5 shadow-2xl pointer-events-auto max-h-[90%] overflow-y-auto">
+            <div className={`absolute top-6 right-6 ${isNodeExpanded ? 'w-[600px]' : 'w-80'} bg-black/80 backdrop-blur-md border border-cyan-500/30 rounded-lg p-5 shadow-2xl pointer-events-auto max-h-[90%] overflow-y-auto transition-all duration-300`}>
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h2 className="text-sm font-bold text-white leading-tight mb-1">{selectedNode.title}</h2>
-                  <span className="text-[9px] font-mono text-cyan-400">ID: {selectedNode.id}</span>
+                  <span className="text-[9px] font-mono text-cyan-400 block mb-1">ID: {selectedNode.id}</span>
+                  {selectedNode.economic?.marketGain > 0 && (
+                    <span className="text-[10px] font-bold text-green-400 bg-green-950/30 border border-green-900/50 px-1.5 py-0.5 rounded inline-block">
+                      Оценка: {formatCurrency(selectedNode.economic.marketGain)}
+                    </span>
+                  )}
                 </div>
-                <button onClick={() => setSelectedNodeId(null)} className="text-neutral-500 hover:text-white ml-3">✕</button>
+                <div className="flex items-center gap-3 relative">
+                  <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-neutral-500 hover:text-cyan-400 transition-colors" title="Menu">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                  </button>
+                  <button onClick={() => setIsNodeExpanded(!isNodeExpanded)} className="text-neutral-500 hover:text-cyan-400 transition-colors" title="Expand/Collapse">
+                    {isNodeExpanded ? '▶' : '◀'}
+                  </button>
+                  <button onClick={() => setSelectedNodeId(null)} className="text-neutral-500 hover:text-white transition-colors">✕</button>
+                  
+                  {isMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-64 bg-[#050810] border border-cyan-800/80 rounded-md shadow-[0_4px_20px_rgba(0,0,0,0.8)] z-30 p-3 flex flex-col gap-3">
+                      <div className="space-y-1.5">
+                        <p className="text-[9px] font-bold uppercase text-cyan-500/80 tracking-wider">Действия</p>
+                        <button type="button" onClick={() => { handleFindPathToRicis(); setIsMenuOpen(false); }} className="w-full text-left px-2 py-1.5 text-[10px] rounded hover:bg-cyan-900/40 text-cyan-300 transition-colors">
+                          Вычислить путь к ядру
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-1.5 border-t border-cyan-900/30 pt-2">
+                        <p className="text-[9px] font-bold uppercase text-amber-500/80 tracking-wider">Генерация TEX</p>
+                        <label className="flex items-start gap-2 text-[10px] text-gray-300 cursor-pointer px-1">
+                          <input type="radio" name="texMode" checked={texMode === 'ricis_pure'} onChange={() => setTexMode('ricis_pure')} className="mt-0.5" />
+                          <span><span className="text-cyan-400 font-semibold">RICIS-pure</span> — без пределов</span>
+                        </label>
+                        <label className="flex items-start gap-2 text-[10px] text-gray-300 cursor-pointer px-1">
+                          <input type="radio" name="texMode" checked={texMode === 'classical_bridges'} onChange={() => setTexMode('classical_bridges')} className="mt-0.5" />
+                          <span><span className="text-amber-400 font-semibold">Classical bridges</span></span>
+                        </label>
+                        <button type="button" onClick={() => { handleGenerateTex(); setIsMenuOpen(false); }} className="w-full mt-1 py-1.5 text-[10px] rounded border border-amber-700/50 bg-amber-950/50 text-amber-200 hover:bg-amber-900/60 transition-colors">
+                          Генерировать TEX
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-1.5 border-t border-cyan-900/30 pt-2">
+                        <p className="text-[9px] font-bold uppercase text-purple-500/80 tracking-wider">Экспорт для ИИ</p>
+                        <button type="button" onClick={() => { handleGenerateJSON(); setIsMenuOpen(false); }} className="w-full mt-1 py-1.5 text-[10px] rounded border border-purple-700/50 bg-purple-950/50 text-purple-200 hover:bg-purple-900/60 transition-colors">
+                          Генерировать JSON
+                        </button>
+                        {jsonMsg && <p className="text-[9px] text-purple-300/90 font-mono break-all mt-1">{jsonMsg}</p>}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+              {(() => {
+                const parents = map.nodes.filter(n => selectedNode.dependencyIds.includes(n.id));
+                return (
+                  <div className="text-[9px] font-mono text-cyan-500/80 mb-3 flex flex-wrap items-center gap-1">
+                    <span className="text-gray-500">{map.zones.find(z => z.id === selectedNode.zoneIds[0])?.name || 'Zone'}</span>
+                    <span className="text-gray-600">/</span>
+                    {parents.length > 0 ? (
+                      <>
+                        <span className="flex gap-1 flex-wrap">
+                          {parents.map((p, idx) => (
+                            <span key={p.id}>
+                              <button type="button" onClick={() => setSelectedNodeId(p.id)} className="hover:text-cyan-300 transition-colors underline decoration-cyan-900/50 underline-offset-2">{p.title}</button>
+                              {idx < parents.length - 1 && <span className="text-gray-600">,</span>}
+                            </span>
+                          ))}
+                        </span>
+                        <span className="text-gray-600">/</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-gray-500">RICIS Core</span>
+                        <span className="text-gray-600">/</span>
+                      </>
+                    )}
+                    <span className="text-cyan-400 font-bold">{selectedNode.title}</span>
+                  </div>
+                );
+              })()}
               <div className="mb-3 flex gap-2 flex-wrap">
                 <span className={'px-2 py-0.5 rounded text-[9px] font-bold uppercase ' + (selectedNode.state === 'resolved' ? 'bg-green-900/50 text-green-400' : selectedNode.state === 'partial' ? 'bg-yellow-900/50 text-yellow-400' : 'bg-red-900/50 text-red-400')}>{selectedNode.state}</span>
                 {!isNodeAvailable(selectedNode, map) && selectedNode.state !== 'resolved' && (
@@ -410,67 +617,61 @@ export const Map3D: React.FC = () => {
                   <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-cyan-900/50 text-cyan-300 border border-cyan-700/40">RICIS CORE</span>
                 )}
               </div>
-              <p className="text-[11px] text-gray-400 leading-relaxed mb-3">{selectedNode.description}</p>
-              <div className="mb-3 space-y-2">
-                <div className="flex gap-2">
-                  <button type="button" onClick={handleFindPathToRicis} className="flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded border border-cyan-700/50 bg-cyan-950/50 text-cyan-300">Путь к RICIS</button>
-                  {pathNodeIds.length > 0 && (
-                    <button type="button" onClick={() => setPathNodeIds([])} className="px-2 py-2 text-[10px] rounded border border-neutral-700 text-gray-400">Сброс</button>
-                  )}
-                </div>
-                {pathNodeIds.length > 0 && (
-                  <div className="text-[10px] text-cyan-400/90 font-mono bg-cyan-950/20 border border-cyan-900/40 rounded p-2 max-h-24 overflow-y-auto">
-                    {pathNodeIds.map(id => map.nodes.find(n => n.id === id)?.title || id).join(' → ')}
-                  </div>
-                )}
-                {unlockReqs.length > 0 && (
-                  <div className="bg-gray-900/60 border border-gray-700/50 rounded p-2">
-                    <p className="text-[9px] text-gray-500 uppercase font-bold mb-1">Чтобы открыть — решите:</p>
-                    <ul className="space-y-1 max-h-28 overflow-y-auto">
-                      {unlockReqs.map(n => (
-                        <li key={n.id} className="text-[10px] text-gray-300">
-                          <button type="button" className="text-left hover:text-cyan-300" onClick={() => setSelectedNodeId(n.id)}>● {n.title}</button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              <p className={`text-[11px] text-gray-400 leading-relaxed whitespace-pre-wrap mb-3 ${!isNodeExpanded && 'line-clamp-4'}`}>{renderTextWithLinks(selectedNode.description)}</p>
               <code className="block text-[10px] bg-black p-2 rounded border border-gray-800 font-mono text-cyan-200 mb-3">{selectedNode.targetFunction}</code>
-              <div className="mb-3 border border-amber-900/40 rounded p-2 bg-amber-950/20 space-y-1.5">
-                <p className="text-[9px] font-bold uppercase text-amber-400/90 tracking-wider">Препринт TEX</p>
-                <p className="text-[9px] text-gray-500 leading-snug">
-                  Развёртка до корня графа (зависимости + рёбра). Два режима мостов.
-                </p>
-                <div className="flex flex-col gap-1">
-                  <label className="flex items-start gap-2 text-[10px] text-gray-300 cursor-pointer">
-                    <input type="radio" name="texMode" checked={texMode === 'ricis_pure'} onChange={() => setTexMode('ricis_pure')} className="mt-0.5" />
-                    <span><span className="text-cyan-300 font-semibold">RICIS-pure</span> — без классических lim / L'Hôpital</span>
-                  </label>
-                  <label className="flex items-start gap-2 text-[10px] text-gray-300 cursor-pointer">
-                    <input type="radio" name="texMode" checked={texMode === 'classical_bridges'} onChange={() => setTexMode('classical_bridges')} className="mt-0.5" />
-                    <span><span className="text-amber-300 font-semibold">Classical bridges</span> — классика как мост + re-index RICIS</span>
-                  </label>
+              {selectedNode.singularityHint && (
+                <div className="mb-3 p-2 bg-purple-950/20 border border-purple-900/40 rounded-md">
+                  <p className="text-[9px] font-bold uppercase text-purple-400/90 tracking-wider mb-1">Подсказка о сингулярности</p>
+                  <p className="text-[10px] text-purple-200/80 leading-relaxed">{selectedNode.singularityHint}</p>
                 </div>
-                <button type="button" onClick={handleGenerateTex} className="w-full py-2 text-[10px] font-bold uppercase tracking-wider rounded border border-amber-700/50 bg-amber-950/50 text-amber-200 hover:bg-amber-900/40">
-                  Генерировать TEX
-                </button>
-                {texMsg && <p className="text-[9px] text-amber-300/90 font-mono break-all">{texMsg}</p>}
-              </div>
+              )}
+
+              
+              {pathNodeIds.length > 0 && (
+                <div className="mb-3 text-[10px] text-cyan-400/90 font-mono bg-cyan-950/20 border border-cyan-900/40 rounded p-2 max-h-24 overflow-y-auto leading-relaxed relative">
+                  <button type="button" onClick={() => setPathNodeIds([])} className="absolute top-1 right-1 px-1 text-cyan-600 hover:text-cyan-300">✕</button>
+                  <div className="pr-4">
+                  {pathNodeIds.map((id, idx) => (
+                    <span key={id}>
+                      <button type="button" className="hover:text-cyan-200 transition-colors" onClick={() => setSelectedNodeId(id)}>
+                        {map.nodes.find(n => n.id === id)?.title || id}
+                      </button>
+                      {idx < pathNodeIds.length - 1 && <span className="text-cyan-700 mx-1">→</span>}
+                    </span>
+                  ))}
+                  </div>
+                </div>
+              )}
+              {unlockReqs.length > 0 && (
+                <div className="mb-3 bg-gray-900/60 border border-gray-700/50 rounded p-2">
+                  <p className="text-[9px] text-gray-500 uppercase font-bold mb-1">Чтобы открыть — решите:</p>
+                  <ul className="space-y-1 max-h-28 overflow-y-auto">
+                    {unlockReqs.map(n => (
+                      <li key={n.id} className="text-[10px] text-gray-300 flex items-start gap-1">
+                        <span className="text-gray-600 mt-0.5">●</span>
+                        <button type="button" className="text-left hover:text-cyan-300 leading-tight" onClick={() => setSelectedNodeId(n.id)}>{n.title}</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {texMsg && <p className="mb-3 text-[9px] text-amber-300/90 font-mono break-all">{texMsg}</p>}
+              
               <button
                 onClick={() => handleSolve(selectedNode.id)}
                 disabled={selectedNode.state === 'resolved' || !isNodeAvailable(selectedNode, map)}
-                className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-800 disabled:text-gray-500 text-white font-bold text-xs uppercase tracking-widest rounded"
+                className="w-full mt-auto py-2.5 bg-cyan-700/80 hover:bg-cyan-600 disabled:bg-gray-800 disabled:text-gray-500 text-white font-bold text-[11px] uppercase tracking-widest rounded transition-colors shadow-lg"
               >
                 {selectedNode.state === 'resolved' ? 'Axiom Extracted' : !isNodeAvailable(selectedNode, map) ? 'Заблокировано зависимостями' : 'Execute RICIS Solution'}
               </button>
+
               {selectedNode.state === 'resolved' && map.getLatexProof(selectedNode.id) && (
                 <div className="mt-4 border-t border-gray-800 pt-3">
                   <button onClick={() => setShowProof(!showProof)} className="w-full flex justify-between text-cyan-400 text-xs font-bold uppercase">
                     <span>View Formal Proof</span><span>{showProof ? '▲' : '▼'}</span>
                   </button>
                   {showProof && (
-                    <div className="mt-2 bg-[#020202] p-3 rounded border border-cyan-900/50 text-gray-300 font-mono text-[9px] whitespace-pre-wrap max-h-40 overflow-y-auto">{map.getLatexProof(selectedNode.id)}</div>
+                    <div className={`mt-2 bg-[#020202] p-3 rounded border border-cyan-900/50 text-gray-300 font-mono text-[9px] whitespace-pre-wrap overflow-y-auto ${isNodeExpanded ? 'max-h-[60vh]' : 'max-h-40'}`}>{map.getLatexProof(selectedNode.id)}</div>
                   )}
                 </div>
               )}
