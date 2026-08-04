@@ -16,6 +16,7 @@ import { layoutZones, layoutNodes, zoneVisualRadius, nodeVisualRadius } from '..
 import { ZoneBubble, NodeBubble, NodeLabel } from './Bubbles';
 import { downloadTexPreprint, type TexBridgeMode, expandToRoot } from '../model/texPreprint';
 import { AuditPanel } from './AuditPanel';
+import { NodeCardDetails } from './NodeCardDetails';
 import { isMissingTargetFunction } from '../model/audit';
 
 
@@ -624,16 +625,8 @@ export const Map3D: React.FC = () => {
                   <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-cyan-900/50 text-cyan-300 border border-cyan-700/40">RICIS CORE</span>
                 )}
               </div>
-              <p className={`text-[11px] text-gray-400 leading-relaxed whitespace-pre-wrap mb-3 ${!isNodeExpanded && 'line-clamp-4'}`}>{renderTextWithLinks(selectedNode.description)}</p>
-              <code className="block text-[10px] bg-black p-2 rounded border border-gray-800 font-mono text-cyan-200 mb-3">{selectedNode.targetFunction}</code>
-              {selectedNode.singularityHint && (
-                <div className="mb-3 p-2 bg-purple-950/20 border border-purple-900/40 rounded-md">
-                  <p className="text-[9px] font-bold uppercase text-purple-400/90 tracking-wider mb-1">Подсказка о сингулярности</p>
-                  <p className="text-[10px] text-purple-200/80 leading-relaxed">{selectedNode.singularityHint}</p>
-                </div>
-              )}
+              <NodeCardDetails node={selectedNode} isExpanded={isNodeExpanded} />
 
-              
               {pathNodeIds.length > 0 && (
                 <div className="mb-3 text-[10px] text-cyan-400/90 font-mono bg-cyan-950/20 border border-cyan-900/40 rounded p-2 max-h-24 overflow-y-auto leading-relaxed relative">
                   <button type="button" onClick={() => setPathNodeIds([])} className="absolute top-1 right-1 px-1 text-cyan-600 hover:text-cyan-300">✕</button>
