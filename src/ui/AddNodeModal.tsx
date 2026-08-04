@@ -23,17 +23,24 @@ export function AddNodeModal({ onClose, parentId }: { onClose: () => void; paren
     setErrorMsg('');
     setLoadingAI(true);
     try {
-      const res = await fetch('/api/aiAssistantNode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, targetFunction })
-      });
-      const data = await res.json();
-      if (data.title && !title) setTitle(data.title);
-      if (data.normalizedFunction) setTargetFunction(data.normalizedFunction);
-      if (data.description) setDescription(data.description);
-      if (data.hint) setHint(data.hint);
-      if (data.link) setLink(data.link);
+      const { postJson } = await import('../model/apiClient');
+      const api = await postJson<{
+        title?: string;
+        normalizedFunction?: string;
+        description?: string;
+        hint?: string;
+        link?: string;
+      }>('/api/aiAssistantNode', { title, targetFunction });
+      if (!api.ok) {
+        setErrorMsg(api.error);
+      } else {
+        const data = api.data;
+        if (data.title && !title) setTitle(data.title);
+        if (data.normalizedFunction) setTargetFunction(data.normalizedFunction);
+        if (data.description) setDescription(data.description);
+        if (data.hint) setHint(data.hint);
+        if (data.link) setLink(data.link);
+      }
     } catch (e) {
       console.error(e);
       setErrorMsg('Ошибка при запросе к ИИ');
