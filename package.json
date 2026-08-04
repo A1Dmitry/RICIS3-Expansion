@@ -1,7 +1,7 @@
 {
   "name": "react-example",
   "private": true,
-  "version": "0.3.25",
+  "version": "0.3.26",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -18,17 +18,16 @@
     "idb": "^8.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "three": "^0.175.0",
+    "three": "^0.172.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
-    "@types/three": "^0.175.0",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@types/express": "^5.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.172.0",
     "tsx": "^4.19.2",
-    "typescript": "~5.7.2",
+    "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }
 }
