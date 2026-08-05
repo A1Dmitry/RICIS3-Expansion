@@ -50,6 +50,29 @@ Contributors             | "Contextual Zeros & Fields" Track | intersections (0/
 
 ---
 
+## Author’s Publications on Academia.edu (Primary Corpus)
+
+The following works are **authored by Dmitry Vladimirovich Aleynikov** (originator of RICIS III), not derivative adopters. They form the primary publication trail of the framework on Academia.edu. Verified direct link is given where publicly resolved; remaining titles are listed for registry completeness and may be opened via Academia.edu document search under the author name.
+
+| # | Title | Platform / link |
+|---|--------|-----------------|
+| 1 | RICIS: structure instead of limits | Academia.edu |
+| 2 | QUANTUM EXTENSION AND FORMAL VERIFICATION OF THE SCHRÖDINGER EQUATION | Academia.edu |
+| 3 | RICIS-III: КВАНТОВОЕ РАСШИРЕНИЕ И ФОРМАЛЬНАЯ ВЕРИФИКАЦИЯ УРАВНЕНИЯ ШРЁДИНГЕРА | Academia.edu |
+| 4 | Singularity: 17 tasks solved | Academia.edu |
+| 5 | Гладкая регуляризация градиентного взрыва и устранение неопределённостей в критических точках функций активации глубоких нейросетей (LLM) на основе RICIS-III | Academia.edu |
+| 6 | A Formal Proof of the Riemann Hypothesis within Recursive Identity Calculus with Indexed Infinity | Academia.edu |
+| 7 | ORP-F-060 — A Comparative Study of RICIS III Monolith Algebra and the Omnion Boundary Kernel: Two Independent Symbolic Approaches to Division by Zero | Academia.edu |
+| 8 | Elimination of Singularities and Analytical Divergences via RICIS III Monolith Algebra | [Academia.edu](https://www.academia.edu/170247780/Elimination_of_Singularities_and_Analytical_Divergences_via_RICIS_III_Monolith_Algebra) · DOI [10.5281/zenodo.21384841](https://doi.org/10.5281/zenodo.21384841) |
+| 9 | Proof of the Erdős Conjecture on Arithmetic Progressions via RICIS-III Unified Framework (v7.7) | Academia.edu |
+| 10 | CONSTRUCTIVE PROOF OF THE CYCLE DOUBLE COVER CONJECTURE (CDCC) VIA RICISIII MONOLITH METHODS | Academia.edu |
+| 11 | Разрешение каспической сингулярности без раздутия: Метод RICIS-III | Academia.edu |
+| 12 | A Formal Proof of the Recursive Identity Calculus with Indexed Infinity (RICIS III) | Academia.edu |
+
+*Note: Items without a resolved public URL should be located on Academia.edu by exact title search under the author’s profile. Do not conflate this primary corpus with the external adopters matrix above.*
+
+---
+
 ## Automated Derivative Detection Protocol (How to Audit)
 
 To continuously identify new derivative frameworks, hidden implementations, or uncredited usage of the no lim paradigm, researchers can deploy the following semantic dork matrices across public data aggregators (Google Scholar, arXiv, Zenodo, ResearchGate):
