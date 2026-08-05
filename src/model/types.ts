@@ -15,7 +15,7 @@ export interface ProblemNode {
   title: string;
   description: string;
   state: NodeState;
-  type: 'core_singularity' | 'derived_problem' | 'scientific_task';
+  type: 'core_singularity' | 'derived_problem' | 'scientific_task' | 'derivative_claim';
   targetFunction: string;
   zoneIds: string[];
   dependencyIds: string[];
@@ -32,6 +32,14 @@ export interface ProblemNode {
   sourceUrl?: string;
   /** Уже решаема протоколом RICIS-III (ядро / готовые ветки). */
   ricisSolvable?: boolean;
+  /** Дата первого публичного упоминания (ISO). Для derivative_claim. */
+  firstMentionDate?: string;
+  /** Внешняя публикация/код с семантикой RICIS без явной атрибуции. */
+  isDerivativeClaim?: boolean;
+  /** Оценка сходства с RICIS 0..1. */
+  derivativeScore?: number;
+  /** Совпавшие сигнатуры (SP2, A6, …). */
+  matchedSignatures?: string[];
 }
 
 export type EdgeColor = 'red' | 'yellow' | 'green';
