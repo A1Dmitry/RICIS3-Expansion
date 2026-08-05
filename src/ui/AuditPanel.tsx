@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMapStore } from '../store/mapStore';
 
-/** Sidebar controls: audit missing targets + agent fill. */
+/** Sidebar controls: audit missing targets + agent fill + derivative search. */
 export const AuditPanel: React.FC = () => {
   const map = useMapStore();
   const [busy, setBusy] = useState(false);
@@ -44,6 +44,31 @@ export const AuditPanel: React.FC = () => {
     }
   };
 
+  const handleDerivatives = async () => {
+    setBusy(true);
+    setMsg(
+      'Поиск производных / переименованных реализаций RICIS (SP2, A6, 0_F/0_G, no lim)…'
+    );
+    try {
+      const r = await map.runDerivativeSearch();
+      if (r.error) {
+        setMsg('Поиск производных: ' + r.error);
+      } else {
+        setMsg(
+          'Производные (фиолетовые): добавлено ' +
+            r.added +
+            ' из ' +
+            r.hits +
+            ' кандидатов. В карточке — дата первого упоминания и связи с math-singularity.'
+        );
+      }
+    } catch (e: any) {
+      setMsg('Поиск производных ошибка: ' + (e?.message || String(e)));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="mt-1 space-y-1">
       <button
@@ -61,6 +86,14 @@ export const AuditPanel: React.FC = () => {
         className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-amber-700/50 bg-amber-950/40 text-amber-200 disabled:opacity-50"
       >
         Агент: заполнить целевые функции
+      </button>
+      <button
+        type="button"
+        onClick={() => void handleDerivatives()}
+        disabled={busy}
+        className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-violet-700/60 bg-violet-950/40 text-violet-200 disabled:opacity-50"
+      >
+        Поиск производных RICIS → фиолетовые
       </button>
       {msg && <p className="text-[10px] text-amber-300/90 mt-1 leading-snug">{msg}</p>}
     </div>
