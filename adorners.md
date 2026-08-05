@@ -73,6 +73,27 @@ The following works are **authored by Dmitry Vladimirovich Aleynikov** (originat
 
 ---
 
+## Author’s Publications on Zenodo (Primary Corpus)
+
+The following deposits are **authored by Dmitry Vladimirovich Aleynikov** (originator of RICIS III). They constitute the primary Zenodo trail of the framework (2025–2026). Verified record links and DOIs are given where publicly resolved.
+
+| Date (version) | Type | Title | Link / DOI |
+|----------------|------|--------|------------|
+| 2026-07-30 (v3) | Publication | «RICIS-III: Recursive Indexed Calculus of Identity and Singularity – Complete Proofs of the Seven Millennium Problems and Navier–Stokes» | [zenodo.org/records/18116204](https://zenodo.org/records/18116204) · DOI [10.5281/zenodo.18116204](https://doi.org/10.5281/zenodo.18116204) |
+| 2026-07-24 (1.0.0) | Software | A1Dmitry/RICIS-III-Lean4-Kernel: RICIS-III Formal Kernel v1.0.0 | Zenodo (Lean 4 kernel: L0, L1, A1–A10; Schrödinger reduction without limits) |
+| 2026-07-23 (v1) | Publication | RICIS-III Master Registry: Unified Structural Resolution of 17 Fundamental Singularities in Number Theory, PDEs, and Mathematical Physics | Zenodo |
+| 2026-07-22 (1) | Publication | Гладкая регуляризация градиентного взрыва и устранение неопределённостей в критических точках функций активации глубоких нейросетей (LLM) на основе RICIS-III | Zenodo |
+| 2026-07-18 (1) | Publication | Fundamental Scientific Report: Cosmological Model of Mutual Pushing and Repulsion Based on RICIS-III | Zenodo |
+| 2026-07-16 (1) | Publication | RICIS-III: Bridge Between Classical Mathematics and Structural Algebra | Zenodo |
+| 2026-07-16 / 2026-07-15 (1) | Publication | Proof of the Erdős Conjecture on Arithmetic Progressions via RICIS-III | Zenodo |
+| 2026-07-15 (v1) | Publication | Elimination of Singularities and Analytical Divergences via RICIS III Monolith Algebra | DOI [10.5281/zenodo.21384841](https://doi.org/10.5281/zenodo.21384841) · also [Academia.edu](https://www.academia.edu/170247780/Elimination_of_Singularities_and_Analytical_Divergences_via_RICIS_III_Monolith_Algebra) |
+| 2026-07-11 (1) | Publication | Resolution of a Cusp Singularity Without Blow-up: The RICIS-III Method | DOI [10.5281/zenodo.21309650](https://doi.org/10.5281/zenodo.21309650) · calculator: [remix-ricis-iii](https://remix-ricis-iii-501343051156.europe-west2.run.app) |
+| 2025-12-20 (4) / uploaded 2026-07-09 | Publication | Functional Decipherment of the Voynich Manuscript (MS 408): A Vector-Oriented Mechanical Forth Implementation for Resonant Hydrodynamic Systems | Zenodo |
+
+*Note: Software and publication records without a resolved numeric DOI in this table should be located on Zenodo by exact title under the author’s deposits. This list is author primary corpus, not the external adopters matrix.*
+
+---
+
 ## Automated Derivative Detection Protocol (How to Audit)
 
 To continuously identify new derivative frameworks, hidden implementations, or uncredited usage of the no lim paradigm, researchers can deploy the following semantic dork matrices across public data aggregators (Google Scholar, arXiv, Zenodo, ResearchGate):
