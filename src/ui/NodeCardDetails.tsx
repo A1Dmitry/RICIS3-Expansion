@@ -57,6 +57,7 @@ const TYPE_LABELS: Record<string, string> = {
   core_singularity: 'Ядро / сингулярность',
   derived_problem: 'Производная задача',
   scientific_task: 'Научная задача',
+  derivative_claim: 'Производная / аудит приоритета',
 };
 
 type Props = {
@@ -130,6 +131,38 @@ export const NodeCardDetails: React.FC<Props> = ({ node, isExpanded }) => {
             </span>
             <span className="break-all">{srcDisplay}</span>
           </a>
+        </div>
+      )}
+
+      {(node.type === 'derivative_claim' || node.isDerivativeClaim) && (
+        <div className="p-2.5 bg-violet-950/40 border border-violet-700/60 rounded-md space-y-1.5">
+          <p className="text-[9px] font-bold uppercase text-violet-300 tracking-wider">
+            Аудит приоритета (производная семантика RICIS)
+          </p>
+          <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
+            <div>
+              <span className="text-gray-500 block uppercase text-[8px]">Первое упоминание</span>
+              <span className="text-violet-100">{node.firstMentionDate || '—'}</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block uppercase text-[8px]">Сходство</span>
+              <span className="text-violet-100">
+                {typeof node.derivativeScore === 'number'
+                  ? (node.derivativeScore * 100).toFixed(0) + '%'
+                  : '—'}
+              </span>
+            </div>
+          </div>
+          {node.matchedSignatures && node.matchedSignatures.length > 0 && (
+            <p className="text-[10px] text-violet-200/90">
+              Сигнатуры: {node.matchedSignatures.join(', ')}
+            </p>
+          )}
+          {node.dependencyIds && node.dependencyIds.length > 0 && (
+            <p className="text-[10px] text-violet-200/80">
+              Связь с RICIS-узлами: {node.dependencyIds.join(', ')}
+            </p>
+          )}
         </div>
       )}
 
