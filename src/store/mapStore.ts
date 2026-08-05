@@ -4,6 +4,7 @@ import { initialMap } from '../model/initialMap';
 import { solveNodeLogic } from '../model/logic';
 import { applyAgentDiscoveries, catalogExhausted, remainingCatalogCount } from '../model/agent';
 import { auditMarkMissingTargets, fillMissingTargetFunctions } from '../model/audit';
+import { applyDerivativeSearch } from '../model/derivativeSearch';
 import { isNodeAvailable } from '../model/access';
 import {
   hydrateInitialState,
@@ -28,6 +29,8 @@ interface MapStore extends MapState {
   isCatalogExhausted: () => boolean;
   runAuditMissingTargets: () => Promise<{ missingCount: number; demoted: number; missingIds: string[] }>;
   runFillMissingTargets: () => Promise<{ filled: number; failed: number; errors: string[]; filledIds: string[] }>;
+  /** Поиск внешних работ с семантикой RICIS (фиолетовые узлы). */
+  runDerivativeSearch: () => Promise<{ added: number; hits: number; error?: string }>;
 }
 
 function emptyState(): MapState {
@@ -197,5 +200,15 @@ export const useMapStore = create<MapStore>((set, get) => ({
       errors: result.errors,
       filledIds: result.filledIds,
     };
+  },
+
+  runDerivativeSearch: async () => {
+    const state = get();
+    const report = await applyDerivativeSearch(state, { maxHits: 8 });
+    if (report.added > 0) {
+      set({ ...report.map, hydrated: true });
+      void saveMapToDb(report.map);
+    }
+    return { added: report.added, hits: report.hits, error: report.error };
   },
 }));
