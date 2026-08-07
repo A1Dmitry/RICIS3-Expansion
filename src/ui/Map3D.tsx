@@ -121,6 +121,9 @@ export const Map3D: React.FC = () => {
   const [texMode, setTexMode] = useState<TexBridgeMode>('ricis_pure');
   const [texMsg, setTexMsg] = useState<string | null>(null);
   const [jsonMsg, setJsonMsg] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    return localStorage.getItem('ricis_selected_ai_model') || 'gemini-3.1-pro-preview';
+  });
   /** Filter: show only purple derivative_claim nodes (and edges between them / to anchors). */
   const [showOnlyDerivatives, setShowOnlyDerivatives] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -532,8 +535,28 @@ export const Map3D: React.FC = () => {
           </section>
 
           <section>
-            <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">ИИ-агент</h3>
-            <button type="button" onClick={handleAgentDiscovery} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-violet-800/50 bg-violet-950/40 text-violet-300">Поиск новых проблем</button>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                ИИ-агент: <span className="text-violet-400 font-mono font-medium lowercase ml-1">{selectedModel}</span>
+              </h3>
+            </div>
+            <div className="mb-2">
+              <label className="text-[9px] text-gray-500 block mb-1">Выбранный ИИ-агент / модель:</label>
+              <select
+                value={selectedModel}
+                onChange={e => {
+                  const val = e.target.value;
+                  setSelectedModel(val);
+                  localStorage.setItem('ricis_selected_ai_model', val);
+                }}
+                className="w-full text-[10px] bg-neutral-900 border border-violet-800/60 rounded px-2 py-1.5 text-violet-200 focus:outline-none focus:border-violet-500 cursor-pointer"
+              >
+                <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (RICIS-III Core)</option>
+                <option value="gemini-2.5-pro">gemini-2.5-pro (High Reasoning)</option>
+                <option value="gemini-3.6-flash">gemini-3.6-flash (Fast Engine)</option>
+              </select>
+            </div>
+            <button type="button" onClick={handleAgentDiscovery} className="w-full text-left px-2 py-1.5 text-[11px] rounded border border-violet-800/50 bg-violet-950/40 text-violet-300 hover:bg-violet-900/40 font-medium">Поиск новых проблем</button>
             <AuditPanel />
             <label className="mt-2 flex items-center gap-2 cursor-pointer px-1 py-1.5 rounded border border-violet-900/40 bg-violet-950/20 hover:bg-violet-950/40">
               <input

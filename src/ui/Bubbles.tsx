@@ -2,7 +2,7 @@ import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-/** Пузырь зоны: fresnel-ободок, полупрозрачная плёнка, лёгкий пульс. */
+/** Пузырь зоны: реалистичный мыльный пузырь с иридесценцией тонкой плёнки, белыми бликами, покачиванием плёнки и прозрачным ядром. */
 export function ZoneBubble({
   position,
   color,
@@ -20,8 +20,7 @@ export function ZoneBubble({
     () => ({
       uColor: { value: new THREE.Color(color) },
       uTime: { value: 0 },
-      uOpacity: { value: 0.28 },
-      uGlow: { value: 1.35 },
+      uOpacity: { value: 0.15 },
     }),
     [color]
   );
@@ -29,7 +28,10 @@ export function ZoneBubble({
   useFrame((_, delta) => {
     currentR.current += (radius - currentR.current) * Math.min(1, delta * 2.8);
     if (meshRef.current) meshRef.current.scale.setScalar(currentR.current);
-    if (matRef.current) matRef.current.uniforms.uTime.value += delta;
+    if (matRef.current) {
+      matRef.current.uniforms.uTime.value += delta;
+      matRef.current.uniforms.uColor.value.set(color);
+    }
   });
 
   return (
@@ -46,15 +48,31 @@ export function ZoneBubble({
         transparent
         depthWrite={false}
         side={THREE.DoubleSide}
-        blending={THREE.AdditiveBlending}
+        blending={THREE.NormalBlending}
         uniforms={uniforms}
         vertexShader={`
           varying vec3 vNormal;
           varying vec3 vView;
+          varying vec3 vWorldPosition;
+          varying vec3 vLocalPosition;
+          uniform float uTime;
+
           void main() {
             vNormal = normalize(normalMatrix * normal);
-            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            vLocalPosition = position;
+
+            // Плавное физическое покачивание мыльной плёнки (поверхностное натяжение)
+            float wave = sin(position.x * 2.8 + uTime * 1.4)
+                       * cos(position.y * 3.2 + uTime * 1.1)
+                       * sin(position.z * 2.8 + uTime * 1.6);
+            vec3 newPos = position + normal * (wave * 0.015);
+
+            vec4 worldPos = modelMatrix * vec4(newPos, 1.0);
+            vWorldPosition = worldPos.xyz;
+
+            vec4 mv = modelViewMatrix * vec4(newPos, 1.0);
             vView = normalize(-mv.xyz);
+
             gl_Position = projectionMatrix * mv;
           }
         `}
@@ -62,20 +80,55 @@ export function ZoneBubble({
           uniform vec3 uColor;
           uniform float uTime;
           uniform float uOpacity;
-          uniform float uGlow;
+
           varying vec3 vNormal;
           varying vec3 vView;
+          varying vec3 vWorldPosition;
+          varying vec3 vLocalPosition;
+
+          // Перламутровая палитра иридесценции мыльной плёнки
+          vec3 rainbow(float t) {
+            return 0.5 + 0.5 * cos(6.28318 * (t + vec3(0.0, 0.33, 0.67)));
+          }
+
           void main() {
-            float ndotv = max(dot(vNormal, vView), 0.0);
-            float fresnel = pow(1.0 - ndotv, 2.6);
-            float pulse = 0.9 + 0.1 * sin(uTime * 1.1);
-            float irid = 0.18 * sin(uTime * 0.65 + fresnel * 10.0);
-            vec3 film = uColor * (0.5 + irid) + vec3(0.2, 0.28, 0.35) * fresnel;
-            float rim = fresnel * uGlow * pulse;
-            float core = 0.03 + 0.06 * fresnel;
-            vec3 col = film * (core + rim * 1.4);
-            float alpha = clamp(uOpacity * (0.18 + fresnel * 1.85) * pulse, 0.0, 0.92);
-            gl_FragColor = vec4(col, alpha);
+            vec3 n = normalize(vNormal);
+            vec3 v = normalize(vView);
+
+            float ndotv = abs(dot(n, v)); // abs для корректного отображения обеих сторон DoubleSide
+            float fresnel = pow(1.0 - ndotv, 2.4);
+
+            // Разводы тонкой мыльной плёнки (движущаяся маслянистая мыльная эмульсия)
+            float filmPattern = fresnel * 2.8 + vLocalPosition.y * 1.8 + sin(vLocalPosition.x * 3.0 + uTime * 0.5) * 0.5;
+            vec3 iridColor = rainbow(filmPattern);
+
+            // Двойной стеклянный блик от внешних источников света
+            vec3 light1 = normalize(vec3(0.7, 0.9, 0.6));
+            vec3 light2 = normalize(vec3(-0.8, -0.4, 0.5));
+
+            vec3 half1 = normalize(light1 + v);
+            vec3 half2 = normalize(light2 + v);
+
+            // Острые зеркальные пятна
+            float spec1 = pow(max(dot(n, half1), 0.0), 140.0); // Главенствующий яркий блик
+            float spec2 = pow(max(dot(n, half2), 0.0), 90.0);  // Вторичный блик отражения
+
+            // Серповидный отблеск вдоль изгиба пузыря
+            float rimArc = pow(fresnel, 4.5) * (0.6 + 0.4 * sin(vLocalPosition.y * 12.0 + uTime * 0.8));
+
+            vec3 specHighlight = vec3(1.0) * (spec1 * 3.0 + spec2 * 1.5 + rimArc * 1.1);
+
+            // Смешивание фундаментального цвета области науки с перламутровой радугой
+            vec3 filmBase = mix(uColor, iridColor, 0.55);
+
+            // Итоговый цвет: прозрачный в центре, с тонкой радужной окаемкой и белыми стеклянными бликами
+            vec3 finalColor = filmBase * (0.12 + fresnel * 1.1) + specHighlight;
+
+            // Прозрачность: ядро почти абсолютно прозрачное (0.02 - 0.05), чтобы узлы внутри были четко видны,
+            // а ободок и блики дают четкие контуры мыльного пузыря.
+            float alpha = clamp(0.03 + fresnel * 0.60 + spec1 * 0.95 + spec2 * 0.70, 0.0, 0.82);
+
+            gl_FragColor = vec4(finalColor, alpha);
           }
         `}
       />

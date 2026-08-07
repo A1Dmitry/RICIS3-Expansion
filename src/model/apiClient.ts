@@ -35,11 +35,22 @@ export async function postJson<T = unknown>(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+  const preferredModel =
+    typeof body === 'object' && body !== null && 'preferredModel' in body
+      ? (body as any).preferredModel
+      : (typeof window !== 'undefined' ? localStorage.getItem('ricis_selected_ai_model') : null) ||
+        'gemini-3.1-pro-preview';
+
+  const finalBody =
+    typeof body === 'object' && body !== null
+      ? { preferredModel, ...body }
+      : body;
+
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(finalBody),
       signal: controller.signal,
     });
 

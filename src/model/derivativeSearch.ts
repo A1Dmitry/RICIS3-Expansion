@@ -146,6 +146,48 @@ ${existingTitles.slice(0, 80).join('; ')}
 Отвечай строго на РУССКОМ языке. Выведи ТОЛЬКО JSON массив, ничего кроме него.`;
 }
 
+export function mapHitToNode(
+  hit: DerivativeHit,
+  stamp: number,
+  index: number,
+  keys: Set<string>
+): ProblemNode | null {
+  if (!hit || !hit.title) return null;
+  const key = normalizeProblemKey(hit.title);
+  if (keys.has(key)) return null;
+  keys.add(key);
+
+  const id = `deriv-${stamp}-${index}`;
+  const zoneId = hit.zoneId || 'math';
+  const depIds = Array.isArray(hit.relevantNodeIds) && hit.relevantNodeIds.length > 0
+    ? hit.relevantNodeIds
+    : ['math-singularity'];
+
+  return {
+    id,
+    title: hit.title,
+    description: hit.description || 'Внешняя публикация/исследование, использующее методы RICIS-III.',
+    state: 'partial',
+    type: 'derivative_claim',
+    targetFunction: `Claim(${hit.title})`,
+    zoneIds: [zoneId],
+    dependencyIds: depIds,
+    dependentIds: [],
+    fractalDepth: 2,
+    economic: {
+      costUnresolved: 100_000,
+      costToSolve: 20_000,
+      marketGain: 500_000,
+      riskLoss: 50_000,
+    },
+    sourceUrl: hit.sourceUrl,
+    firstMentionDate: hit.firstMentionDate,
+    isDerivativeClaim: true,
+    derivativeScore: typeof hit.score === 'number' ? hit.score : 0.75,
+    matchedSignatures: Array.isArray(hit.matchedSignatures) ? hit.matchedSignatures : ['A6', 'SP2'],
+  };
+}
+
 export async function applyDerivativeSearch(
   map: MapState,
   options?: { maxHits?: number }
