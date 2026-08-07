@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MapState, ProblemNode, DependencyEdge, Zone } from '../model/types';
+import { MapState, ProblemNode, DependencyEdge, ScienceZone } from '../model/types';
 import { initialMap } from '../model/initialMap';
 import { solveNodeLogic } from '../model/logic';
 import { applyAgentDiscoveries, catalogExhausted, remainingCatalogCount } from '../model/agent';
@@ -14,6 +14,7 @@ import {
   exportMapJson,
   importMapJson,
 } from '../model/persistence';
+import { runDatabaseMigration, MigrationAuditReport } from '../model/migrationAudit';
 
 interface MapStore extends MapState {
   hydrated: boolean;
@@ -32,6 +33,8 @@ interface MapStore extends MapState {
   runFillMissingTargets: () => Promise<{ filled: number; failed: number; errors: string[]; filledIds: string[] }>;
   /** Поиск внешних работ с семантикой RICIS (фиолетовые узлы). */
   runDerivativeSearch: () => Promise<{ added: number; hits: number; error?: string }>;
+  /** Полный аудит графа и миграция базы с версионированием в IndexedDB */
+  runAuditMigration: (force?: boolean) => Promise<MigrationAuditReport>;
 }
 
 function emptyState(): MapState {
@@ -213,5 +216,13 @@ export const useMapStore = create<MapStore>((set, get) => ({
       void saveMapToDb(sanitized);
     }
     return { added: report.added, hits: report.hits, error: report.error };
+  },
+
+  runAuditMigration: async (force = false) => {
+    const state = get();
+    const res = await runDatabaseMigration(state, force);
+    const sanitized = sanitizeMap(res.map);
+    set({ ...sanitized, hydrated: true });
+    return res.report;
   },
 }));

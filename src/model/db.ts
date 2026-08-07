@@ -239,6 +239,40 @@ export async function dbGetProof(nodeId: string): Promise<Proof | undefined> {
   }
 }
 
+export async function dbGetMigrationState(): Promise<{ version: number; auditedAt?: string; report?: any } | null> {
+  const db = await openDb();
+  try {
+    const tx = db.transaction(STORES.meta, 'readonly');
+    const row = await reqToPromise(
+      tx.objectStore(STORES.meta).get('migration_state') as IDBRequest<{
+        key: string;
+        version: number;
+        auditedAt?: string;
+        report?: any;
+      }>
+    );
+    return row ? { version: row.version ?? 0, auditedAt: row.auditedAt, report: row.report } : null;
+  } finally {
+    db.close();
+  }
+}
+
+export async function dbSetMigrationState(version: number, report?: any): Promise<void> {
+  const db = await openDb();
+  try {
+    const tx = db.transaction(STORES.meta, 'readwrite');
+    tx.objectStore(STORES.meta).put({
+      key: 'migration_state',
+      version,
+      auditedAt: new Date().toISOString(),
+      report,
+    });
+    await txDone(tx);
+  } finally {
+    db.close();
+  }
+}
+
 export async function dbMeta(): Promise<{ savedAt?: string; nodeCount?: number; proofCount?: number } | null> {
   const db = await openDb();
   try {

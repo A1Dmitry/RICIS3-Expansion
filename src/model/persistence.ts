@@ -1,6 +1,7 @@
 import { MapState, Proof, ProblemNode, DependencyEdge, Axiom, ScienceZone } from './types';
 import { initialMap } from './initialMap';
 import { dbSaveMap, dbLoadMap, dbClear } from './db';
+import { runDatabaseMigration } from './migrationAudit';
 
 /** @deprecated Legacy localStorage snapshot (миграция). */
 const LEGACY_KEY = 'ricis3-map-v1';
@@ -55,7 +56,6 @@ export function sanitizeMap(map: MapState): MapState {
       id: zid,
       name: zid.charAt(0).toUpperCase() + zid.slice(1).replace(/_/g, ' '),
       description: 'Автоматически созданная область наук',
-      baseColor: color,
       nodeIds: [],
       economicProfile: {
         costUnresolved: 10000,
@@ -134,6 +134,8 @@ export async function hydrateInitialState(): Promise<MapState> {
     }
   }
 
+  let stateToMigrate: MapState;
+
   if (loadedState) {
     // Merge any zones from initialMap that are missing in the loaded state
     const existingZoneIds = new Set(loadedState.zones.map(z => z.id));
@@ -144,23 +146,25 @@ export async function hydrateInitialState(): Promise<MapState> {
         nodeIds: [...z.nodeIds],
         economicProfile: { ...z.economicProfile }
       }))];
-      await dbSaveMap(loadedState);
     }
-    return loadedState;
+    stateToMigrate = loadedState;
+  } else {
+    stateToMigrate = sanitizeMap({
+      nodes: initialMap.nodes.map(n => ({ ...n, economic: { ...n.economic } })),
+      edges: initialMap.edges.map(e => ({ ...e })),
+      zones: initialMap.zones.map(z => ({
+        ...z,
+        nodeIds: [...z.nodeIds],
+        economicProfile: { ...z.economicProfile },
+      })),
+      axioms: [...initialMap.axioms],
+      proofs: { ...initialMap.proofs },
+    });
   }
 
-
-  return sanitizeMap({
-    nodes: initialMap.nodes.map(n => ({ ...n, economic: { ...n.economic } })),
-    edges: initialMap.edges.map(e => ({ ...e })),
-    zones: initialMap.zones.map(z => ({
-      ...z,
-      nodeIds: [...z.nodeIds],
-      economicProfile: { ...z.economicProfile },
-    })),
-    axioms: [...initialMap.axioms],
-    proofs: { ...initialMap.proofs },
-  });
+  // Execute one-time DB migration & audit (fixes titles, repairs orphan node connections to RICIS, rebuilds edges & updates DB version)
+  const migrationResult = await runDatabaseMigration(stateToMigrate);
+  return migrationResult.map;
 }
 
 export async function saveMapToDb(state: MapState): Promise<boolean> {

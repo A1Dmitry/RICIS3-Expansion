@@ -6,8 +6,8 @@
  */
 
 export type ApiResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; status?: number; isStaticHost?: boolean };
+  | { ok: true; data: T; error?: undefined; isStaticHost?: undefined }
+  | { ok: false; error: string; status?: number; isStaticHost?: boolean; data?: undefined };
 
 const STATIC_HOST_HINT =
   'Агент API недоступен на статическом хостинге (GitHub Pages). ' +

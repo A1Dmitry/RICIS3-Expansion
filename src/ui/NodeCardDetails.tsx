@@ -65,19 +65,62 @@ type Props = {
   isExpanded: boolean;
 };
 
+export function getReferencesForNode(node: ProblemNode) {
+  const cleanTitle = node.title
+    .replace(/\(RICIS.*?\)/gi, '')
+    .replace(/\(Деление.*?\)/gi, '')
+    .trim();
+
+  const fromFields =
+    node.sourceUrl ||
+    extractSourceUrl(node.description) ||
+    extractSourceUrl(node.singularityHint) ||
+    null;
+
+  const directUrl = fromFields ? normalizeUrl(fromFields) : null;
+
+  // Wikipedia search link
+  const wikiUrl = `https://ru.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(cleanTitle)}`;
+
+  // Academic article / Scholar link
+  const articleUrl = directUrl
+    ? directUrl
+    : `https://scholar.google.com/scholar?q=${encodeURIComponent(cleanTitle)}`;
+
+  // DOI link selection based on topic/node
+  let doiUrl = 'https://doi.org/10.5281/zenodo.17872755';
+  let doiLabel = '10.5281/zenodo.17872755 (RICIS-III Core)';
+
+  const tLower = (node.title + ' ' + node.id + ' ' + (node.description || '')).toLowerCase();
+  if (tLower.includes('войнич') || tLower.includes('voynich')) {
+    doiUrl = 'https://doi.org/10.5281/zenodo.18001299';
+    doiLabel = '10.5281/zenodo.18001299 (Voynich MS)';
+  } else if (tLower.includes('gradient') || tLower.includes('градиент') || tLower.includes('llm')) {
+    doiUrl = 'https://doi.org/10.5281/zenodo.21491712';
+    doiLabel = '10.5281/zenodo.21491712 (LLM Gradient Explosion)';
+  } else if (tLower.includes('catalog') || tLower.includes('17 задач') || tLower.includes('17 problem')) {
+    doiUrl = 'https://doi.org/10.5281/zenodo.21517353';
+    doiLabel = '10.5281/zenodo.21517353 (Master Registry)';
+  }
+
+  return {
+    directUrl,
+    directDisplay: fromFields,
+    wikiUrl,
+    doiUrl,
+    doiLabel,
+    articleUrl,
+    cleanTitle,
+  };
+}
+
 /**
  * Expanded node card body:
  * description (with links), targetFunction, singularityHint,
  * dedicated source link, meta grid, economics.
  */
 export const NodeCardDetails: React.FC<Props> = ({ node, isExpanded }) => {
-  const fromFields =
-    node.sourceUrl ||
-    extractSourceUrl(node.description) ||
-    extractSourceUrl(node.singularityHint) ||
-    null;
-  const src = fromFields ? normalizeUrl(fromFields) : null;
-  const srcDisplay = fromFields || src;
+  const refs = getReferencesForNode(node);
 
   return (
     <div className={`space-y-3 ${isExpanded ? 'text-[12px]' : 'text-[11px]'}`}>
@@ -114,25 +157,66 @@ export const NodeCardDetails: React.FC<Props> = ({ node, isExpanded }) => {
         </div>
       )}
 
-      {src && (
-        <div className="p-2.5 bg-cyan-950/25 border border-cyan-800/50 rounded-md">
-          <p className="text-[9px] font-bold uppercase text-cyan-500/90 tracking-wider mb-1.5">
-            Источник / ссылка
+      {/* Ссылки и научные первоисточники (Статья, Википедия, DOI) */}
+      <div className="p-2.5 bg-neutral-900/90 border border-cyan-800/60 rounded-md space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-[9px] font-bold uppercase text-cyan-400 tracking-wider">
+            Ссылки и первоисточники
           </p>
+          {node.state === 'resolved' && (
+            <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+              Решено (Resolved)
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5 text-[11px]">
+          {/* 1. Статья / Публикация */}
           <a
-            href={src}
+            href={refs.articleUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-start gap-1.5 text-cyan-300 hover:text-cyan-100 hover:underline break-all font-medium"
+            className="inline-flex items-center gap-1.5 text-cyan-300 hover:text-cyan-100 hover:underline break-all font-medium transition-colors"
             onClick={e => e.stopPropagation()}
           >
-            <span className="shrink-0 mt-0.5 text-cyan-500" aria-hidden>
-              ↗
+            <span className="text-cyan-400 font-bold shrink-0">📄 Статья:</span>
+            <span className="truncate max-w-[240px] text-[10px]">
+              {refs.directUrl ? refs.directDisplay : `Google Scholar: ${refs.cleanTitle}`}
             </span>
-            <span className="break-all">{srcDisplay}</span>
+            <span className="text-xs text-cyan-500 shrink-0">↗</span>
+          </a>
+
+          {/* 2. Википедия */}
+          <a
+            href={refs.wikiUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-sky-300 hover:text-sky-100 hover:underline break-all font-medium transition-colors"
+            onClick={e => e.stopPropagation()}
+          >
+            <span className="text-sky-400 font-bold shrink-0">🌐 Википедия:</span>
+            <span className="truncate max-w-[240px] text-[10px]">
+              Поиск: {refs.cleanTitle}
+            </span>
+            <span className="text-xs text-sky-500 shrink-0">↗</span>
+          </a>
+
+          {/* 3. DOI */}
+          <a
+            href={refs.doiUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-purple-300 hover:text-purple-100 hover:underline break-all font-medium transition-colors"
+            onClick={e => e.stopPropagation()}
+          >
+            <span className="text-purple-400 font-bold shrink-0">📑 DOI:</span>
+            <span className="font-mono text-[10px] text-purple-200 truncate max-w-[240px]">
+              {refs.doiLabel}
+            </span>
+            <span className="text-xs text-purple-500 shrink-0">↗</span>
           </a>
         </div>
-      )}
+      </div>
 
       {(node.type === 'derivative_claim' || node.isDerivativeClaim) && (
         <div className="p-2.5 bg-violet-950/40 border border-violet-700/60 rounded-md space-y-1.5">
@@ -187,31 +271,43 @@ export const NodeCardDetails: React.FC<Props> = ({ node, isExpanded }) => {
         </div>
       </div>
 
-      {node.economic && (
-        <div className="p-2.5 rounded border border-emerald-900/45 bg-emerald-950/20">
-          <p className="text-[9px] font-bold uppercase text-emerald-500/90 tracking-wider mb-2">
-            Экономика
-          </p>
-          <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px]">
-            <div className="flex justify-between gap-2">
-              <span className="text-gray-500">Оценка рынка</span>
-              <span className="text-emerald-300">{formatCurrency(node.economic.marketGain) || '—'}</span>
+      {node.economic && (() => {
+        const netProfit = Math.max(0, (node.economic.marketGain || 0) - (node.economic.costToSolve || 0));
+        return (
+          <div className="p-2.5 rounded border border-emerald-900/45 bg-emerald-950/20">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[9px] font-bold uppercase text-emerald-500/90 tracking-wider">
+                Экономика и Прибыльность
+              </p>
+              <span className="text-[9px] text-emerald-400/80 font-mono">
+                Лог-масштаб шара
+              </span>
             </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-gray-500">Стоимость решения</span>
-              <span className="text-amber-200/90">{formatCurrency(node.economic.costToSolve) || '—'}</span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-gray-500">Убыток нерешения</span>
-              <span className="text-red-300/90">{formatCurrency(node.economic.costUnresolved) || '—'}</span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-gray-500">Риск-потери</span>
-              <span className="text-orange-300/90">{formatCurrency(node.economic.riskLoss) || '—'}</span>
+            <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px]">
+              <div className="flex justify-between gap-2">
+                <span className="text-gray-500">Оценка рынка</span>
+                <span className="text-emerald-300">{formatCurrency(node.economic.marketGain) || '—'}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-gray-500">Затраты на решение</span>
+                <span className="text-amber-200/90">{formatCurrency(node.economic.costToSolve) || '—'}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-gray-500">Убыток нерешения</span>
+                <span className="text-red-300/90">{formatCurrency(node.economic.costUnresolved) || '—'}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-gray-500">Риск-потери</span>
+                <span className="text-orange-300/90">{formatCurrency(node.economic.riskLoss) || '—'}</span>
+              </div>
+              <div className="col-span-2 pt-1.5 mt-1 border-t border-emerald-900/40 flex justify-between items-center text-[11px]">
+                <span className="text-emerald-400 font-semibold">Прибыльность решения (Net Profit):</span>
+                <span className="text-emerald-300 font-bold font-mono">{formatCurrency(netProfit)}</span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {node.ricisSolvable && (
         <div className="text-[10px] text-cyan-400/90 border border-cyan-800/40 bg-cyan-950/20 rounded px-2 py-1.5">
