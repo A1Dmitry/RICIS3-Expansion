@@ -1,31 +1,18 @@
 const fs = require('fs');
 let code = fs.readFileSync('src/ui/Map3D.tsx', 'utf-8');
 
-const formatHelper = `const formatCurrency = (val?: number) => {
-  if (val === undefined) return '';
-  if (val >= 1e9) return '$' + (val / 1e9).toFixed(1) + 'B';
-  if (val >= 1e6) return '$' + (val / 1e6).toFixed(1) + 'M';
-  return '$' + val.toLocaleString();
-};\n\n`;
+const searchStr = "return <ZoneBubble key={zone.id} position={pos} color={color} radius={radius} />;";
+const replaceStr = `return (
+                <group key={zone.id}>
+                  <ZoneBubble position={pos} color={color} radius={radius} />
+                  <ZoneLabel position={pos} text={zone.name} radius={radius} color={color} />
+                </group>
+              );`;
 
-code = code.replace('export const Map3D: React.FC = () => {', formatHelper + 'export const Map3D: React.FC = () => {');
-
-const oldNodeLabelCall = `<NodeLabel
-                    position={pos}
-                    text={node.title}
-                    subtitle={map.zones.find(z => z.id === node.zoneIds[0])?.name || node.zoneIds[0]}
-                    offsetY={radius + 0.35}
-                  />`;
-
-const newNodeLabelCall = `<NodeLabel
-                    position={pos}
-                    text={node.title}
-                    subtitle={map.zones.find(z => z.id === node.zoneIds[0])?.name || node.zoneIds[0]}
-                    valueText={formatCurrency(node.economic?.marketGain)}
-                    offsetY={radius + 0.35}
-                  />`;
-
-code = code.replace(oldNodeLabelCall, newNodeLabelCall);
-
-fs.writeFileSync('src/ui/Map3D.tsx', code);
-console.log('Patched Map3D label');
+if (code.includes(searchStr)) {
+  code = code.replace(searchStr, replaceStr);
+  fs.writeFileSync('src/ui/Map3D.tsx', code);
+  console.log('patched Map3D to add ZoneLabel');
+} else {
+  console.log('search string not found in Map3D.tsx');
+}

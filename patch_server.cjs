@@ -1,10 +1,24 @@
 const fs = require('fs');
-let code = fs.readFileSync('server.ts', 'utf-8');
+const file = 'server.ts';
+let code = fs.readFileSync(file, 'utf-8');
 
-const oldPrompt = "Provide the output as a valid LaTeX document section. Use mathematical notation and refer to the provided axioms if applicable. Keep it concise, professional, and do not use generic AI filler. Structure it with subsections for the phases of the solution. Return ONLY the LaTeX string without markdown code blocks.";
-const newPrompt = "Provide the output as a valid LaTeX document section. Use mathematical notation and refer to the provided axioms if applicable. Keep it concise, professional, and do not use generic AI filler.\\nSTRICT LaTeX OUTPUT RULES:\\n1. Return ONLY a FRAGMENT: paragraphs and math environments. NO \\\\documentclass, NO \\\\usepackage, NO \\\\begin{document}, NO markdown.\\n2. DO NOT use \\\\section, \\\\subsection, or \\\\chapter. Use \\\\textbf{...} for headings instead.\\n3. ASCII math only: $\\\\infty$ $\\\\to$ $\\\\leq$ --- never unicode.\\n4. Pair every $. Pair every \\\\begin{env}/\\\\end{env}. Allowed: equation*, align*, itemize, enumerate.\\n5. Max 60 lines. No HTML, no JSON, no error messages.";
+const replacement = `      const { existingTitles, parentNode } = req.body || {};
+      const ai = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY || "dummy",
+        httpOptions: { headers: { "User-Agent": "aistudio-build" } },
+      });
 
-code = code.replace(oldPrompt, newPrompt);
-code = code.replace(/"gemini-3\.6-flash"/g, '"gemini-2.5-flash"');
-fs.writeFileSync('server.ts', code);
-console.log('Patched server.ts');
+      const zoneId = parentNode && parentNode.zoneIds && parentNode.zoneIds.length > 0 ? parentNode.zoneIds[0] : "any";
+      const prompt = \`Ты агент-исследователь RICIS-III. Предложи новые научные или математические проблемы, которые можно свести к алгебре сингулярностей без пределов (SP2, A6, индексированные 0/∞).
+Зона науки (zoneId): \${zoneId}. Опора: \${parentNode ? parentNode.title : "нет"}.
+Уже на карте (не повторяй): \${(Array.isArray(existingTitles) ? existingTitles : []).slice(0, 50).join("; ")}
+Верни СТРОГИЙ JSON массив объектов: title (строка), description (строка), targetFunction (строка), zoneId (строка - ДОЛЖНА БЫТЬ \${zoneId}), significance (число 0-1), singularityHint (строка).
+Предпочитай проблемы, расширяющие ядро сингулярностей или применяющие RICIS к биологии, химии, экологии, медицине, физике, экономике. Максимум 8 элементов. Выведи ТОЛЬКО JSON массив.\`;`;
+
+code = code.replace(
+/const \{ existingTitles, zoneId, focus \} = req\.body \|\| \{\};\s*const ai = new GoogleGenAI\(\{\s*apiKey: process\.env\.GEMINI_API_KEY \|\| "dummy",\s*httpOptions: \{ headers: \{ "User-Agent": "aistudio-build" \} \},\s*\}\);\s*const prompt = `You are a RICIS-III discovery agent[\s\S]*?Output ONLY the JSON array\.`;/,
+replacement
+);
+
+fs.writeFileSync(file, code);
+console.log('server patched');

@@ -13,7 +13,7 @@ import {
   isRicisCore,
 } from '../model/access';
 import { layoutZones, layoutNodes, zoneVisualRadius, nodeVisualRadius } from '../model/physics';
-import { ZoneBubble, NodeBubble, NodeLabel } from './Bubbles';
+import { ZoneBubble, ZoneLabel, NodeBubble, NodeLabel } from './Bubbles';
 import { downloadTexPreprint, type TexBridgeMode, expandToRoot } from '../model/texPreprint';
 import { AuditPanel } from './AuditPanel';
 import { NodeCardDetails } from './NodeCardDetails';
@@ -39,7 +39,12 @@ const zoneColors: Record<string, string> = {
   economics: '#eab308',
   ethics: '#f43f5e',
   cognitive: '#a78bfa',
-  chemistry: '#34d399',
+    chemistry: '#34d399',
+  biology: '#22c55e',
+  ecology: '#15803d',
+  astrophysics: '#9333ea',
+  materials: '#64748b',
+  linguistics: '#d946ef',
   bioinformatics: '#2dd4bf',
 };
 
@@ -97,6 +102,9 @@ const formatCurrency = (val?: number) => {
   return '$' + val.toLocaleString();
 };
 
+
+
+
 export const Map3D: React.FC = () => {
   const map = useMapStore();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -115,6 +123,11 @@ export const Map3D: React.FC = () => {
   const [jsonMsg, setJsonMsg] = useState<string | null>(null);
   /** Filter: show only purple derivative_claim nodes (and edges between them / to anchors). */
   const [showOnlyDerivatives, setShowOnlyDerivatives] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const maxFractalDepth = useMemo(() => {
+    return Math.max(0, ...map.nodes.map(n => n.fractalDepth || 0));
+  }, [map.nodes]);
+
 
   const selectedNode = map.nodes.find(n => n.id === selectedNodeId) || null;
   const availability = useMemo(() => countAvailable(map), [map.nodes, map.edges, hiddenZones]);
@@ -139,9 +152,16 @@ export const Map3D: React.FC = () => {
   /** Node ids visible under current filter (zones still apply). */
   const visibleNodeIds = useMemo(() => {
     const ids = new Set<string>();
+    const q = searchQuery.toLowerCase().trim();
     for (const n of map.nodes) {
       if (n.zoneIds.every(zid => hiddenZones.has(zid))) continue;
       if (showOnlyDerivatives && !isDerivativeNode(n)) continue;
+      if (q) {
+        const titleMatch = n.title?.toLowerCase().includes(q);
+        const descMatch = n.description?.toLowerCase().includes(q);
+        const tfMatch = n.targetFunction?.toLowerCase().includes(q);
+        if (!titleMatch && !descMatch && !tfMatch) continue;
+      }
       ids.add(n.id);
     }
     // When filtering derivatives, also keep direct anchor parents so edges make sense
@@ -152,7 +172,7 @@ export const Map3D: React.FC = () => {
       }
     }
     return ids;
-  }, [map.nodes, hiddenZones, showOnlyDerivatives]);
+  }, [map.nodes, hiddenZones, showOnlyDerivatives, searchQuery]);
 
   useEffect(() => {
     setShowProof(false);
@@ -434,6 +454,18 @@ export const Map3D: React.FC = () => {
             </button>
           </section>
 
+          
+          <section className="mb-4">
+            <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-2">Поиск</h3>
+            <input
+              type="text"
+              placeholder="Поиск узлов..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-neutral-900/50 border border-neutral-700 rounded px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-cyan-500"
+            />
+          </section>
+
           <section>
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Science Zones</h3>
             <div className="space-y-2">
@@ -542,9 +574,15 @@ export const Map3D: React.FC = () => {
               const pos = zonePositions[zone.id] || [0, 0, 0];
               const color = getZoneColor(zone.id);
               const radius = zoneRadii[zone.id] || 5;
-              return <ZoneBubble key={zone.id} position={pos} color={color} radius={radius} />;
+              return (
+                <group key={zone.id}>
+                  <ZoneBubble position={pos} color={color} radius={radius} />
+                  <ZoneLabel position={pos} text={zone.name} radius={radius} color={color} />
+                </group>
+              );
             })}
 
+            
             {edgesLines}
 
             {map.nodes.filter(n => visibleNodeIds.has(n.id)).map(node => {

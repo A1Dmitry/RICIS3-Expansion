@@ -31,24 +31,24 @@ async function startServer() {
           ? axioms.map((a: any, i: number) => `${i + 1}. ${a.title || a.id}: ${a.targetFunction || ""}`).join("\n")
           : "(no prior axioms)";
 
-      const prompt = `You are the RICIS-III formal agent. Prove or construct a resolution for the singularity/problem using ONLY RICIS-III algebra (indexed zeros/infinities, SP2/A6 reductions, no classical limits or integrals).
+            const prompt = `Ты формальный агент RICIS-III. Докажи или построй решение для сингулярности/проблемы, используя ТОЛЬКО алгебру RICIS-III (индексированные нули/бесконечности, редукции SP2/A6, без классических пределов и интегралов). Отвечай строго на русском языке!
 
-Problem title: ${title}
-Target function / expression: ${targetFunction || "(none)"}
+Название проблемы: ${title}
+Целевая функция / выражение: ${targetFunction || "(нет)"}
 
-Available axioms from the map (already resolved):
+Доступные аксиомы с карты (уже решенные):
 ${axiomList}
 
-Output STRICT LaTeX body (no \\section, no \\subsection, no documentclass). Use \\textbf for headings. Prefer constructive indexed-zero / SP2 steps. If partial, state remaining obstacles clearly.`;
+ВЫВЕДИ СТРОГИЙ ТЕКСТ LaTeX (без \\section, без \\subsection, без documentclass). Используй \\textbf для заголовков. Предпочитай конструктивные шаги с нулями-индексами и SP2. Если решение частичное, четко укажи оставшиеся препятствия.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3.6-flash",
         contents: prompt,
         config: { responseMimeType: "text/plain" },
       });
 
       const text = response.text || "";
-      res.json({ proof: text, model: "gemini-2.0-flash" });
+      res.json({ proof: text, model: "gemini-3.6-flash" });
     } catch (e: any) {
       console.error(e);
       res.status(500).json({ error: e.message || String(e) });
@@ -57,20 +57,21 @@ Output STRICT LaTeX body (no \\section, no \\subsection, no documentclass). Use 
 
   app.post("/api/discoverTasks", async (req, res) => {
     try {
-      const { existingTitles, zoneId, focus } = req.body || {};
+            const { existingTitles, parentNode } = req.body || {};
       const ai = new GoogleGenAI({
         apiKey: process.env.GEMINI_API_KEY || "dummy",
         httpOptions: { headers: { "User-Agent": "aistudio-build" } },
       });
 
-      const prompt = `You are a RICIS-III discovery agent. Propose new scientific / mathematical problems that can be reduced via limit-free singularity algebra (SP2, A6, indexed 0/∞).
-Zone focus: ${zoneId || "any"}. Extra focus: ${focus || "none"}.
-Already on map (do not repeat): ${(Array.isArray(existingTitles) ? existingTitles : []).slice(0, 50).join("; ")}
-Return STRICT JSON array of objects: title, description, targetFunction, zoneId, significance (0-1), dependencyHints (string array).
-Prefer problems that extend core singularities or apply RICIS to physics/medicine/economics. Max 8 items. Output ONLY the JSON array.`;
+      const zoneId = parentNode && parentNode.zoneIds && parentNode.zoneIds.length > 0 ? parentNode.zoneIds[0] : "any";
+      const prompt = `Ты агент-исследователь RICIS-III. Предложи новые научные или математические проблемы, которые можно свести к алгебре сингулярностей без пределов (SP2, A6, индексированные 0/∞).
+Зона науки (zoneId): ${zoneId}. Опора: ${parentNode ? parentNode.title : "нет"}.
+Уже на карте (не повторяй): ${(Array.isArray(existingTitles) ? existingTitles : []).slice(0, 50).join("; ")}
+Верни СТРОГИЙ JSON массив объектов: title (строка), description (строка), targetFunction (строка), zoneId (строка - ДОЛЖНА БЫТЬ ${zoneId}), significance (число 0-1), singularityHint (строка).
+Предпочитай проблемы, расширяющие ядро сингулярностей или применяющие RICIS к биологии, химии, экологии, медицине, физике, экономике. Максимум 8 элементов. Выведи ТОЛЬКО JSON массив.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3.6-flash",
         contents: prompt,
         config: { responseMimeType: "application/json" },
       });
@@ -107,7 +108,7 @@ Hint: ${hint || ""}
 Return STRICT JSON object with keys: title, description, targetFunction, significance (0-1 number), axiomsSuggested (string array). Keep targetFunction in RICIS style (indexed zeros, no lim). Output ONLY JSON.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3.6-flash",
         contents: prompt,
         config: { responseMimeType: "application/json" },
       });
@@ -130,20 +131,22 @@ Return STRICT JSON object with keys: title, description, targetFunction, signifi
 
   app.post("/api/fillNodeParams", async (req, res) => {
     try {
-      const { title, description, zoneId } = req.body || {};
+            const { title, description, zoneIds } = req.body || {};
       const ai = new GoogleGenAI({
         apiKey: process.env.GEMINI_API_KEY || "dummy",
         httpOptions: { headers: { "User-Agent": "aistudio-build" } },
       });
 
-      const prompt = `Fill missing RICIS-III node parameters.
-Title: ${title || ""}
-Description: ${description || ""}
-Zone: ${zoneId || "math"}
-Return STRICT JSON: targetFunction (RICIS expression preferred), significance (0-1), shortProofSketch (plain text or simple LaTeX without section), tags (string array). Output ONLY JSON.`;
+      const zoneStr = Array.isArray(zoneIds) && zoneIds.length > 0 ? zoneIds.join(", ") : "math";
+      const prompt = `Заполни недостающие параметры узла RICIS-III.
+Название: ${title || ""}
+Описание: ${description || ""}
+Зона: ${zoneStr}
+Верни СТРОГИЙ JSON: targetFunction (строка, предпочтительно выражение RICIS-III), significance (число 0-1), shortProofSketch (простой текст без секций), tags (массив строк).
+Выведи ТОЛЬКО JSON объект.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3.6-flash",
         contents: prompt,
         config: { responseMimeType: "application/json" },
       });
@@ -176,15 +179,15 @@ Return STRICT JSON: targetFunction (RICIS expression preferred), significance (0
         httpOptions: { headers: { "User-Agent": "aistudio-build" } },
       });
 
-      const fallbackPrompt = `You are a scientific priority auditor for RICIS-III.
-Find EXTERNAL works that reuse limit-free singularity algebra (0/0, 0*inf, indexed zeros) without citing Aleynikov/RICIS.
-Return STRICT JSON array of objects: title, description, sourceUrl, firstMentionDate, zoneId, matchedSignatures, score, relevantNodeIds, authors.
-Exclude official RICIS deposits. Prefer score>=0.55. If none, return [].
-Already on map: ${Array.isArray(existingTitles) ? existingTitles.slice(0, 40).join("; ") : ""}
-Output ONLY valid JSON array.`;
+            const fallbackPrompt = `Ты аудитор научного приоритета для RICIS-III.
+Найди ВНЕШНИЕ работы, которые переиспользуют алгебру сингулярностей без пределов (0/0, 0*inf, индексированные нули) без ссылки на Алейникова/RICIS.
+Верни СТРОГИЙ JSON массив объектов: title, description, sourceUrl, firstMentionDate, zoneId, matchedSignatures, score, relevantNodeIds, authors.
+Исключай официальные депозиты RICIS. Предпочитай score>=0.55. Если ничего не найдено, верни [].
+Уже на карте: ${Array.isArray(existingTitles) ? existingTitles.slice(0, 40).join("; ") : ""}
+Отвечай СТРОГО на РУССКОМ ЯЗЫКЕ. Выведи ТОЛЬКО валидный JSON массив.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3.6-flash",
         contents: typeof prompt === "string" && prompt.length > 100 ? prompt : fallbackPrompt,
         config: { responseMimeType: "application/json" },
       });

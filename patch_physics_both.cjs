@@ -1,141 +1,22 @@
-import { ProblemNode, ScienceZone, MapState } from './types';
+const fs = require('fs');
+let code = fs.readFileSync('src/model/physics.ts', 'utf-8');
 
-/**
- * Физика экранирования и внешнего давления.
- *
- * Fext_i = -Pext * Si * normalize(x_i)
- * Frep_ij = k * (Si * Sj) / r^2 * normalize(x_i - x_j)
- * Fi = Fext_i + sum Frep_ij -> 0 в равновесии
- */
+// We will replace both layoutZones and layoutNodes.
+const lzStart = "export function layoutZones(";
+const lnStart = "export function layoutNodes(";
 
-export function nodeShielding(node: ProblemNode): number {
-  const eco =
-    Math.log10(1 + node.economic.costUnresolved) * 0.15 +
-    Math.log10(1 + node.economic.riskLoss) * 0.12 +
-    Math.log10(1 + node.economic.marketGain) * 0.1;
-  const deps = 0.08 * (node.dependencyIds?.length || 0) + 0.05 * (node.dependentIds?.length || 0);
-  const typeBoost =
-    node.type === 'core_singularity' ? 1.4 : node.type === 'scientific_task' ? 1.0 : 0.85;
-  const stateBoost =
-    node.state === 'resolved' ? 0.7 : node.state === 'partial' ? 1.05 : 1.0;
-  const reward =
-    node.rewardClass === 'clay'
-      ? 1.35
-      : node.rewardClass === 'nobel'
-      ? 1.3
-      : node.rewardClass === 'commercial'
-      ? 1.1
-      : 1.0;
-  return Math.max(0.35, (0.55 + eco + deps) * typeBoost * stateBoost * reward);
+const lzIndex = code.indexOf(lzStart);
+const lnIndex = code.indexOf(lnStart);
+
+if (lzIndex === -1 || lnIndex === -1) {
+  console.log("Could not find functions");
+  process.exit(1);
 }
 
-export function zoneShielding(zone: ScienceZone, nodes: ProblemNode[]): number {
-  const members = nodes.filter(n => zone.nodeIds.includes(n.id) || n.zoneIds.includes(zone.id));
-  if (members.length === 0) {
-    return 0.8 + Math.log10(1 + zone.economicProfile.costUnresolved) * 0.1;
-  }
-  const sumS = members.reduce((a, n) => a + nodeShielding(n), 0);
-  const nBoost = Math.pow(members.length, 0.45);
-  return Math.max(0.8, sumS * 0.35 + nBoost * 0.9);
-}
+// Since layoutNodes is after layoutZones, we'll just substring until the end.
+const codeBefore = code.substring(0, lzIndex);
 
-function normalize3(x: number, y: number, z: number): [number, number, number] {
-  const len = Math.sqrt(x * x + y * y + z * z) + 1e-9;
-  return [x / len, y / len, z / len];
-}
-
-export interface PressureLayoutParams {
-  Pext: number;
-  kRep: number;
-  steps: number;
-  dt: number;
-  damping: number;
-  soft: number;
-  r0: number;
-}
-
-const DEFAULT_ZONE: PressureLayoutParams = {
-  Pext: 0.015,
-  kRep: 120,
-  steps: 120,
-  dt: 0.45,
-  damping: 0.84,
-  soft: 1.4,
-  r0: 14,
-};
-
-const DEFAULT_NODE: PressureLayoutParams = {
-  Pext: 0.04,
-  kRep: 80,
-  steps: 100,
-  dt: 0.4,
-  damping: 0.82,
-  soft: 0.55,
-  r0: 3.5,
-};
-
-export function relaxPressureRepulsion(
-  n: number,
-  S: number[],
-  params: PressureLayoutParams,
-  seedPos?: [number, number, number][]
-): [number, number, number][] {
-  if (n === 0) return [];
-
-  const pos: [number, number, number][] =
-    seedPos && seedPos.length === n
-      ? seedPos.map(p => [p[0], p[1], p[2]] as [number, number, number])
-      : Array.from({ length: n }, (_, i) => {
-          const phi = Math.acos(1 - (2 * (i + 0.5)) / n);
-          const theta = Math.PI * (1 + Math.sqrt(5)) * i;
-          const meanS = S.reduce((a, b) => a + b, 0) / n + 1e-6;
-          const r = params.r0 * (0.85 + 0.15 * (S[i] / meanS));
-          return [
-            r * Math.sin(phi) * Math.cos(theta),
-            r * Math.sin(phi) * Math.sin(theta),
-            r * Math.cos(phi) * 0.55,
-          ] as [number, number, number];
-        });
-
-  const vel = pos.map(() => [0, 0, 0] as [number, number, number]);
-  const { Pext, kRep, steps, dt, damping, soft } = params;
-
-  for (let s = 0; s < steps; s++) {
-    for (let i = 0; i < n; i++) {
-      const Si = S[i];
-      // Spring attraction to origin
-      let fx = -Pext * Si * pos[i][0];
-      let fy = -Pext * Si * pos[i][1];
-      let fz = -Pext * Si * pos[i][2];
-
-      for (let j = 0; j < n; j++) {
-        if (i === j) continue;
-        const dx = pos[i][0] - pos[j][0];
-        const dy = pos[i][1] - pos[j][1];
-        const dz = pos[i][2] - pos[j][2];
-        const r2 = dx * dx + dy * dy + dz * dz + soft * soft;
-        const invR = 1 / Math.sqrt(r2);
-        const mag = (kRep * (Si * S[j])) / r2;
-        fx += dx * invR * mag;
-        fy += dy * invR * mag;
-        fz += dz * invR * mag;
-      }
-
-      vel[i][0] = (vel[i][0] + fx * dt) * damping;
-      vel[i][1] = (vel[i][1] + fy * dt) * damping;
-      vel[i][2] = (vel[i][2] + fz * dt) * damping;
-    }
-    for (let i = 0; i < n; i++) {
-      pos[i][0] += vel[i][0] * dt;
-      pos[i][1] += vel[i][1] * dt;
-      pos[i][2] += vel[i][2] * dt;
-    }
-  }
-
-  return pos;
-}
-
-export function layoutZones(
+const newCode = `export function layoutZones(
   zones: ScienceZone[],
   nodes: ProblemNode[],
   params: Partial<PressureLayoutParams> = {}
@@ -221,7 +102,6 @@ export function layoutNodes(
   const S = nodes.map(nodeShielding);
 
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
-  const getZid = (node: ProblemNode) => (node.zoneIds[0] && zonePositions[node.zoneIds[0]]) ? node.zoneIds[0] : 'math';
   
   const zoneMaxDepth: Record<string, number> = {};
   const zoneBaseR: Record<string, number> = {};
@@ -232,7 +112,7 @@ export function layoutNodes(
   });
   
   nodes.forEach(node => {
-    const zid = getZid(node);
+    const zid = node.zoneIds[0] || 'math';
     if (zoneMaxDepth[zid] === undefined) {
        zoneMaxDepth[zid] = 0;
        zoneBaseR[zid] = 20;
@@ -249,7 +129,7 @@ export function layoutNodes(
   });
 
   nodes.filter(n => (n.fractalDepth || 0) === 0).forEach((node, i, arr) => {
-    const zid = getZid(node);
+    const zid = node.zoneIds[0] || 'math';
     const zc = zonePositions[zid] || [0, 0, 0];
     
     const phi = Math.acos(1 - (2 * (i + 0.5)) / (arr.length || 1));
@@ -283,7 +163,7 @@ export function layoutNodes(
       const parentNode = nodeMap.get(parentId);
       let baseDir = [0, 1, 0];
       
-      const zid = getZid(siblings[0]);
+      const zid = siblings[0].zoneIds[0] || 'math';
       const zc = zonePositions[zid] || [0, 0, 0];
       const maxD = zoneMaxDepth[zid] || 1;
       let R = zoneBaseR[zid] || 20;
@@ -370,7 +250,7 @@ export function layoutNodes(
   for (let s = 0; s < steps; s++) {
     for (let i = 0; i < n; i++) {
       const nodeI = nodes[i];
-      const zidI = getZid(nodeI);
+      const zidI = nodeI.zoneIds[0] || 'math';
       const radI = nodeRadii[nodeI.id];
       
       let fx = 0;
@@ -380,7 +260,7 @@ export function layoutNodes(
       for (let j = 0; j < n; j++) {
         if (i === j) continue;
         const nodeJ = nodes[j];
-        if (getZid(nodeJ) !== zidI) continue;
+        if (nodeJ.zoneIds[0] !== zidI) continue;
         if (nodeJ.fractalDepth !== nodeI.fractalDepth) continue;
 
         const radJ = nodeRadii[nodeJ.id];
@@ -414,7 +294,7 @@ export function layoutNodes(
 
     for (let i = 0; i < n; i++) {
       const nodeI = nodes[i];
-      const zidI = getZid(nodeI);
+      const zidI = nodeI.zoneIds[0] || 'math';
       const zcI = zonePositions[zidI] || [0, 0, 0];
       const maxD = zoneMaxDepth[zidI] || 1;
       const R = zoneBaseR[zidI] || 20;
@@ -475,3 +355,7 @@ export function nodeVisualRadius(node: ProblemNode, allNodes: ProblemNode[]): nu
   const base = 1.55 + significance * 1.15;
   return base * coreBoost;
 }
+`;
+
+fs.writeFileSync('src/model/physics.ts', codeBefore + newCode);
+console.log('patched both layout algorithms');

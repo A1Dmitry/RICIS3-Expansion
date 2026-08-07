@@ -116,109 +116,36 @@ export type DerivativeSearchReport = {
  */
 export function buildDerivativeSearchPrompt(existingTitles: string[]): string {
   const sigBlock = RICIS_SIGNATURES.map(
-    s => `- ${s.id}: ${s.label}\n  queries: ${s.queries.join(' | ')}`
+    s => `- ${s.id}: ${s.label}\n  запросы: ${s.queries.join(' | ')}`
   ).join('\n');
 
-  return `You are a scientific priority auditor for RICIS-III (Recursive Indexed Calculus of Identity and Singularity by Dmitry Aleynikov).
+  return `Ты аудитор научного приоритета для системы RICIS-III (Автор: Дмитрий Алейников).
 
-TASK: Find EXTERNAL papers, preprints, patents, blogs, or codebases that reuse RICIS-III *ideas* even if renamed, rebranded, or without citing Aleynikov / RICIS.
+ЗАДАЧА: Найти ВНЕШНИЕ статьи, препринты, патенты, блоги или репозитории кода, которые используют идеи RICIS-III (даже если они переименованы, изменены или не ссылаются на автора/RICIS).
 
-HISTORICAL PRIORITY FACT (use when scoring):
-Before RICIS, mainstream math did NOT claim a complete constructive algebra that resolves 0/0, 0×∞, ∞/∞ as *indexed structural identities without limits (lim)*. Classical tools use limits, blow-ups, regularization, or declare NaN. Any work claiming limit-free exact resolution of these forms is high-priority for audit.
+ФАКТ ИСТОРИЧЕСКОГО ПРИОРИТЕТА (используй при оценке):
+До RICIS классическая математика НЕ заявляла о полной конструктивной алгебре, которая разрешает 0/0, 0×∞, ∞/∞ как индексированные структурные тождества без пределов (lim). Классические инструменты используют пределы, регуляризации или объявляют NaN. Любая работа, заявляющая точное разрешение этих форм без пределов, имеет высокий приоритет для аудита.
 
-SIGNATURES TO MATCH (semantic, not only exact strings):
+СИГНАТУРЫ ДЛЯ ПОИСКА (семантические, не только точные строки):
 ${sigBlock}
 
-ALREADY ON OUR MAP (do not duplicate titles):
+УЖЕ ЕСТЬ НА КАРТЕ (не повторяй названия):
 ${existingTitles.slice(0, 80).join('; ')}
 
-OUTPUT: STRICT JSON array of 0–8 objects with keys:
-- "title": string
-- "description": string (why it matches RICIS semantics; note rename if any)
-- "sourceUrl": string (DOI, arXiv, Zenodo, URL if known; else empty)
-- "firstMentionDate": string (YYYY-MM-DD or YYYY-MM or YYYY — earliest public date you can justify)
-- "zoneId": one of math|physics|informatics|medicine|pharmacology|economics|ethics
-- "matchedSignatures": string[] (subset of SP2,A6,A4_SP3,NO_LIM,L0_L1,MONOLITH,NO_BLOWUP,LLM_GRAD)
-- "score": number 0..1 (1 = clear semantic clone of RICIS core)
-- "relevantNodeIds": string[] (prefer "math-singularity" and/or "core-agi-target")
-- "authors": string
+ВЫВЕДИ: СТРОГИЙ JSON массив от 0 до 8 объектов с ключами:
+- "title": строка
+- "description": строка (почему это совпадает с семантикой RICIS; отметь переименования)
+- "sourceUrl": строка (ссылка, если есть)
+- "firstMentionDate": строка (год или дата)
+- "zoneId": строка (зона науки, например "math", "physics", "computer_science")
+- "matchedSignatures": массив строк (id сигнатур из списка выше)
+- "score": число 0-1 (уверенность в том, что это производная работа, >=0.55)
+- "relevantNodeIds": массив строк
+- "authors": массив строк
 
-Rules:
-- Prefer score >= 0.55 only.
-- Do NOT list Aleynikov / RICIS-III official deposits as derivatives.
-- If nothing credible, return [].
-- Output ONLY valid JSON array.`;
+Отвечай строго на РУССКОМ языке. Выведи ТОЛЬКО JSON массив, ничего кроме него.`;
 }
 
-function mapHitToNode(
-  hit: DerivativeHit,
-  stamp: number,
-  index: number,
-  keys: Set<string>
-): ProblemNode | null {
-  const title = String(hit.title || '').trim();
-  if (!title) return null;
-  if (keys.has(normalizeProblemKey(title, '')) || keys.has(normalizeProblemKey(title, hit.title))) {
-    return null;
-  }
-
-  const score = typeof hit.score === 'number' ? hit.score : 0.6;
-  if (score < 0.55) return null;
-
-  const zoneId = hit.zoneId && ['math', 'physics', 'informatics', 'medicine', 'pharmacology', 'economics', 'ethics'].includes(hit.zoneId)
-    ? hit.zoneId
-    : 'math';
-
-  const deps = (hit.relevantNodeIds && hit.relevantNodeIds.length > 0
-    ? hit.relevantNodeIds
-    : [...RICIS_CORE_ANCHORS]
-  ).filter(Boolean);
-
-  const id = `deriv-${stamp}-${index}`;
-  const sigs = Array.isArray(hit.matchedSignatures) ? hit.matchedSignatures.map(String) : [];
-  const date = String(hit.firstMentionDate || '').trim() || 'unknown';
-
-  keys.add(normalizeProblemKey(title, ''));
-
-  const node: ProblemNode = {
-    id,
-    title: `[DERIV] ${title}`,
-    description:
-      (hit.description || 'External work matching RICIS-III semantic signatures.') +
-      (hit.authors ? `\nAuthors: ${hit.authors}` : '') +
-      `\nFirst mention: ${date}` +
-      (sigs.length ? `\nMatched signatures: ${sigs.join(', ')}` : '') +
-      `\nSimilarity score: ${score.toFixed(2)}` +
-      (hit.sourceUrl ? `\nИсточник: ${hit.sourceUrl}` : ''),
-    state: 'partial',
-    type: 'derivative_claim',
-    targetFunction: `AuditDerivative(${sigs[0] || 'RICIS_CORE'})`,
-    zoneIds: [zoneId],
-    dependencyIds: deps,
-    dependentIds: [],
-    fractalDepth: 2,
-    economic: {
-      costUnresolved: 50,
-      costToSolve: 20,
-      marketGain: 10,
-      riskLoss: 80,
-    },
-    rewardClass: 'reputation',
-    prizeNote: 'Derivative / priority audit (purple)',
-    singularityHint: 'Semantic reuse of limit-free singularity algebra',
-    sourceUrl: hit.sourceUrl ? String(hit.sourceUrl).trim() : undefined,
-    firstMentionDate: date,
-    isDerivativeClaim: true,
-    derivativeScore: score,
-    matchedSignatures: sigs,
-    ricisSolvable: false,
-  };
-  return node;
-}
-
-/**
- * Run derivative search via API and merge purple nodes into the map.
- */
 export async function applyDerivativeSearch(
   map: MapState,
   options?: { maxHits?: number }

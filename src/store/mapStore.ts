@@ -7,6 +7,7 @@ import { auditMarkMissingTargets, fillMissingTargetFunctions } from '../model/au
 import { applyDerivativeSearch } from '../model/derivativeSearch';
 import { isNodeAvailable } from '../model/access';
 import {
+  sanitizeMap,
   hydrateInitialState,
   saveMapToDb,
   clearMapDb,
@@ -171,8 +172,9 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const state = get();
     const report = await applyAgentDiscoveries(state, anchorNodeId, 2, 6);
     if (report.added > 0) {
-      set(report.map);
-      void saveMapToDb(report.map);
+      const sanitized = sanitizeMap(report.map);
+      set(sanitized);
+      void saveMapToDb(sanitized);
     }
     return { added: report.added, error: report.error };
   },
@@ -206,8 +208,9 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const state = get();
     const report = await applyDerivativeSearch(state, { maxHits: 8 });
     if (report.added > 0) {
-      set({ ...report.map, hydrated: true });
-      void saveMapToDb(report.map);
+      const sanitized = sanitizeMap(report.map);
+      set({ ...sanitized, hydrated: true });
+      void saveMapToDb(sanitized);
     }
     return { added: report.added, hits: report.hits, error: report.error };
   },
