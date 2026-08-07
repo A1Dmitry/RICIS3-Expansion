@@ -3,6 +3,34 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 
+
+const MODELS_POOL = [
+  "gemini-3.1-pro-preview",
+  "gemini-2.5-pro",
+  "gemini-3.6-flash"
+];
+
+async function callAIWithFallback(ai, prompt, responseMimeType = "text/plain") {
+  let lastError = null;
+  for (const model of MODELS_POOL) {
+    try {
+      console.log("[AI] Attempting to call model: " + model);
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: { responseMimeType },
+      });
+      console.log("[AI] Successfully called model: " + model);
+      return { text: response.text || "", model };
+    } catch (e) {
+      console.warn("[AI] Model " + model + " failed: " + e.message);
+      lastError = e;
+      continue;
+    }
+  }
+  throw lastError || new Error("All AI models in the pool failed.");
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -41,14 +69,10 @@ ${axiomList}
 
 ВЫВЕДИ СТРОГИЙ ТЕКСТ LaTeX (без \\section, без \\subsection, без documentclass). Используй \\textbf для заголовков. Предпочитай конструктивные шаги с нулями-индексами и SP2. Если решение частичное, четко укажи оставшиеся препятствия.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
-        config: { responseMimeType: "text/plain" },
-      });
+      const response = await callAIWithFallback(ai, prompt, "text/plain");
 
       const text = response.text || "";
-      res.json({ proof: text, model: "gemini-3.6-flash" });
+      res.json({ proof: text, model: response.model });
     } catch (e: any) {
       console.error(e);
       res.status(500).json({ error: e.message || String(e) });
@@ -57,7 +81,7 @@ ${axiomList}
 
   app.post("/api/discoverTasks", async (req, res) => {
     try {
-            const { existingTitles, parentNode } = req.body || {};
+            const { existingTitles, parentNode, existingZones } = req.body || {};
       const ai = new GoogleGenAI({
         apiKey: process.env.GEMINI_API_KEY || "dummy",
         httpOptions: { headers: { "User-Agent": "aistudio-build" } },
@@ -65,16 +89,13 @@ ${axiomList}
 
       const zoneId = parentNode && parentNode.zoneIds && parentNode.zoneIds.length > 0 ? parentNode.zoneIds[0] : "any";
       const prompt = `Ты агент-исследователь RICIS-III. Предложи новые научные или математические проблемы, которые можно свести к алгебре сингулярностей без пределов (SP2, A6, индексированные 0/∞).
-Зона науки (zoneId): ${zoneId}. Опора: ${parentNode ? parentNode.title : "нет"}.
+Опора: ${parentNode ? parentNode.title : "нет"}. Зона опоры: ${zoneId}.
 Уже на карте (не повторяй): ${(Array.isArray(existingTitles) ? existingTitles : []).slice(0, 50).join("; ")}
-Верни СТРОГИЙ JSON массив объектов: title (строка), description (строка), targetFunction (строка), zoneId (строка - ДОЛЖНА БЫТЬ ${zoneId}), significance (число 0-1), singularityHint (строка).
-Предпочитай проблемы, расширяющие ядро сингулярностей или применяющие RICIS к биологии, химии, экологии, медицине, физике, экономике. Максимум 8 элементов. Выведи ТОЛЬКО JSON массив.`;
+Существующие зоны науки: ${(Array.isArray(existingZones) ? existingZones : []).join(", ")}.
+Верни СТРОГИЙ JSON массив объектов: title (строка), description (строка), targetFunction (строка), zoneId (строка - ID научной области на английском. Используй одну из существующих зон, ИЛИ если проблема совсем в них не попадает, придумай НОВЫЙ ID, например finance, ecology), significance (число 0-1), singularityHint (строка).
+Предпочитай проблемы, расширяющие ядро сингулярностей или применяющие RICIS к новым дисциплинам. Максимум 8 элементов. Выведи ТОЛЬКО JSON массив.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
-        config: { responseMimeType: "application/json" },
-      });
+      const response = await callAIWithFallback(ai, prompt, "application/json");
 
       let text = response.text || "[]";
       const match = text.match(/\[[\s\S]*\]/);
@@ -107,11 +128,7 @@ Zone: ${zoneId || "math"}
 Hint: ${hint || ""}
 Return STRICT JSON object with keys: title, description, targetFunction, significance (0-1 number), axiomsSuggested (string array). Keep targetFunction in RICIS style (indexed zeros, no lim). Output ONLY JSON.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
-        config: { responseMimeType: "application/json" },
-      });
+      const response = await callAIWithFallback(ai, prompt, "application/json");
 
       let text = response.text || "{}";
       const match = text.match(/\{[\s\S]*\}/);
@@ -145,11 +162,7 @@ Return STRICT JSON object with keys: title, description, targetFunction, signifi
 Верни СТРОГИЙ JSON: targetFunction (строка, предпочтительно выражение RICIS-III), significance (число 0-1), shortProofSketch (простой текст без секций), tags (массив строк).
 Выведи ТОЛЬКО JSON объект.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
-        config: { responseMimeType: "application/json" },
-      });
+      const response = await callAIWithFallback(ai, prompt, "application/json");
 
       let text = response.text || "{}";
       const match = text.match(/\{[\s\S]*\}/);
@@ -186,11 +199,7 @@ Return STRICT JSON object with keys: title, description, targetFunction, signifi
 Уже на карте: ${Array.isArray(existingTitles) ? existingTitles.slice(0, 40).join("; ") : ""}
 Отвечай СТРОГО на РУССКОМ ЯЗЫКЕ. Выведи ТОЛЬКО валидный JSON массив.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: typeof prompt === "string" && prompt.length > 100 ? prompt : fallbackPrompt,
-        config: { responseMimeType: "application/json" },
-      });
+      const response = await callAIWithFallback(ai, typeof prompt === "string" && prompt.length > 100 ? prompt : fallbackPrompt, "application/json");
 
       let text = response.text || "[]";
       const match = text.match(/\[[\s\S]*\]/);

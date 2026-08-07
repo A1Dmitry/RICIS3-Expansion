@@ -468,7 +468,7 @@ export const Map3D: React.FC = () => {
 
           <section>
             <h3 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Science Zones</h3>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
               {map.zones.map(zone => {
                 const isHidden = hiddenZones.has(zone.id);
                 return (

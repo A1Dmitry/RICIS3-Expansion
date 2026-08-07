@@ -195,7 +195,7 @@ export async function discoverNewProblems(
 
   const api = await postJson<{ tasks?: DiscoveredTask[]; error?: string }>(
     '/api/discoverTasks',
-    { parentNode: anchor, existingTitles }
+    { parentNode: anchor, existingTitles, existingZones: map.zones.map(z => z.id) }
   );
 
   if (!api.ok) {
